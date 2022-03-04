@@ -4663,6 +4663,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "rad-profile"
+version = "0.1.0"
+source = "git+https://github.com/radicle-dev/radicle-link?tag=cycle/2022-02-15#913817739e1c021d8ad142e7ea38272839d6bc5c"
+dependencies = [
+ "anyhow",
+ "futures-lite",
+ "librad",
+ "rad-clib",
+ "serde",
+ "structopt",
+ "thiserror",
+ "thrussh-agent",
+]
+
+[[package]]
+name = "rad-propose"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "git2",
+ "lexopt",
+ "librad",
+ "rad-common",
+ "rad-profile",
+ "rad-terminal",
+]
+
+[[package]]
 name = "rad-pull"
 version = "0.1.0"
 dependencies = [
@@ -4798,6 +4826,8 @@ dependencies = [
  "rad-init",
  "rad-inspect",
  "rad-ls",
+ "rad-profile",
+ "rad-propose",
  "rad-pull",
  "rad-push",
  "rad-remote",
