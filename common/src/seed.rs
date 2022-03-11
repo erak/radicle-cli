@@ -322,6 +322,11 @@ pub fn push_refs(
             "refs/namespaces/{}/refs/rad/signed_refs:refs/remotes/{}/rad/signed_refs",
             project_id, remote
         ),
+        // TODO(erikli): Activate when client code is ready.
+        // &format!(
+        //     "+refs/namespaces/{}/refs/notes/*:refs/remotes/{}/notes/*",
+        //     project_id, peer_id
+        // ),
     ];
 
     if let Some(head) = options.head {

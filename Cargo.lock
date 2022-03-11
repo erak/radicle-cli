@@ -4844,12 +4844,14 @@ dependencies = [
  "lnk-profile",
  "rad-terminal",
  "radicle-git-ext",
+ "regex",
  "serde",
  "serde_json",
  "sha2 0.10.2",
  "thiserror",
  "ureq",
  "url",
+ "yaml-front-matter",
 ]
 
 [[package]]
@@ -6919,6 +6921,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0b223640dfbc22009679ce79f6777ae1db79add62a07345605777f69274a052"
 dependencies = [
  "rand 0.8.5",
+]
+
+[[package]]
+name = "yaml-front-matter"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a94fb32d2b438e3fddf901fbfe9eb87b34d63853ca6c6da5d2ab7e27031e0bae"
+dependencies = [
+ "serde",
+ "serde_yaml",
 ]
 
 [[package]]
