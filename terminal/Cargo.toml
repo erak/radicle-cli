@@ -13,3 +13,4 @@ lexopt = "0.2.0"
 librad = { version = "0" }
 lnk-profile = { version = "0" }
 thiserror = "1.0"
+bat = "0.20.0"

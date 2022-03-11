@@ -26,11 +26,15 @@ pub mod components {
     use std::fmt::Write;
     use std::str::FromStr;
 
+    use bat::{Input as BatInput, PrettyPrinter};
+
     use librad::crypto::keystore::crypto::{KdfParams, Pwhash};
     use librad::crypto::keystore::pinentry::SecUtf8;
 
     use dialoguer::{console::style, console::Style, theme::ColorfulTheme, Input, Password};
     use indicatif::{ProgressBar, ProgressFinish, ProgressStyle};
+
+    pub use dialoguer::Editor;
 
     use super::keys;
 
@@ -202,6 +206,25 @@ pub mod components {
         println!("{}", style(text).dim());
     }
 
+    pub fn markdown(content: &str) {
+        PrettyPrinter::new()
+            .language("md")
+            .grid(true)
+            .header(true)
+            .input(BatInput::from_bytes(content.as_bytes()).name("tmp.md").kind("File"))
+            .print()
+            .unwrap();
+    }
+
+    pub fn git_note(content: &str) {
+        PrettyPrinter::new()
+            .colored_output(false)
+            .header(true)
+            .input(BatInput::from_bytes(content.as_bytes()).name("tmp.md").kind("File"))
+            .print()
+            .unwrap();
+    }
+
     pub fn blank() {
         println!()
     }
@@ -280,6 +303,15 @@ pub mod components {
             .with_prompt(format!("{} {}", style(" ⤷".to_owned()).cyan(), prompt))
             .wait_for_newline(false)
             .default(true)
+            .interact()
+            .unwrap_or_default()
+    }
+
+    pub fn confirm_with_default<D: fmt::Display>(prompt: D, default: bool) -> bool {
+        dialoguer::Confirm::new()
+            .with_prompt(format!("{} {}", style(" ⤷".to_owned()).cyan(), prompt))
+            .wait_for_newline(true)
+            .default(default)
             .interact()
             .unwrap_or_default()
     }
@@ -438,12 +470,20 @@ pub mod components {
             style(msg).cyan().to_string()
         }
 
+        pub fn tertiary_bold<D: std::fmt::Display>(msg: D) -> String {
+            style(msg).cyan().bold().to_string()
+        }
+
         pub fn yellow<D: std::fmt::Display>(msg: D) -> String {
             style(msg).yellow().to_string()
         }
 
         pub fn highlight<D: std::fmt::Display>(input: D) -> String {
             style(input).green().bright().to_string()
+        }
+
+        pub fn highlight_dim<D: std::fmt::Display>(input: D) -> String {
+            style(input).green().to_string()
         }
 
         pub fn badge_primary<D: std::fmt::Display>(input: D) -> String {
