@@ -20,8 +20,11 @@ pub use git2::Oid;
 pub use git2::Repository;
 pub use librad::git::local::transport;
 pub use librad::git::types::remote::LocalFetchspec;
+pub use serde::{Deserialize, Serialize};
 
 use crate::keys;
+
+use rad_terminal::components as term;
 
 pub const CONFIG_COMMIT_GPG_SIGN: &str = "commit.gpgsign";
 pub const CONFIG_SIGNING_KEY: &str = "user.signingkey";
@@ -84,6 +87,12 @@ impl std::str::FromStr for Version {
             patch,
         })
     }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub struct Patch {
+    pub title: String,
+    pub tag_name: String,
 }
 
 /// Get the system's git version.
@@ -317,6 +326,70 @@ pub fn parse_remote(refspec: &str) -> Option<(PeerId, &str)> {
         .strip_prefix("refs/remotes/")
         .and_then(|s| s.split_once('/'))
         .and_then(|(peer, r)| PeerId::from_str(peer).ok().map(|p| (p, r)))
+}
+
+pub fn add_tag(
+    repo: &git2::Repository,
+    title: &str,
+    patch_tag_name: &str,
+    force: bool
+) -> anyhow::Result<Patch> {
+    let head = repo.head()?;
+    let commit = head.peel(git2::ObjectType::Commit).unwrap();
+    
+    repo.tag(&patch_tag_name, &commit, &repo.signature()?, &title, force)?;
+
+    Ok(Patch {
+        title: title.to_string(),
+        tag_name: patch_tag_name.to_string()
+    })
+}
+
+pub fn push_tag(tag_name: &str, force: bool) -> anyhow::Result<String> {
+    git(Path::new("."), vec!["push", if force { "--force" } else { "" }, "rad", "tag", &tag_name])
+}
+
+pub fn list_commits(
+    repo: &git2::Repository,
+    left: &git2::Oid,
+    right: &git2::Oid,
+    show_header: bool)
+-> anyhow::Result<()> {
+    let mut table = term::Table::default();
+
+    let left_short = format!("{:.7}", left.to_string());
+    let right_short = format!("{:.7}", right.to_string());
+
+    let mut revwalk = repo.revwalk()?;
+    revwalk.push_range(&format!("{}..{}", left_short, right_short))?;
+
+    if show_header {
+        term::blank();
+        term::info!(
+            "Found {} commits.",
+            term::format::highlight(revwalk.count())
+        );
+        term::blank();
+    }
+    
+    let mut revwalk = repo.revwalk()?;
+    revwalk.push_range(&format!("{}..{}", left_short, right_short))?;
+
+    while let Some(rev) = revwalk.next() {
+        // term::info!("{}", rev?);
+        let commit = repo.find_commit(rev?)?;
+        let message = commit
+            .summary_bytes()
+            .unwrap_or_else(|| commit.message_bytes());
+        // term::info!("{}\t{}", commit.id(), String::from_utf8_lossy(message));
+        table.push([
+            term::format::secondary(format!("{:.7}", commit.id().to_string())),
+            term::format::italic(String::from_utf8_lossy(message)),
+        ]);
+    }
+    table.render();
+
+    Ok(())
 }
 
 fn write_gitsigner(mut w: impl io::Write, signer: &PeerId) -> io::Result<()> {
