@@ -117,29 +117,31 @@ pub fn create(
         }
     }
 
-    let spinner = term::spinner(&format!("Creating note in monorepo."));
-    let profile = profile::default()?;
-    let monorepo = profile::monorepo(&profile)?;
-    match monorepo.note(
-        &monorepo.signature()?,
-        &monorepo.signature()?,
-        Some(&format!("refs/namespaces/{}/refs/notes/commits", urn.encode_id())),
-        head_ref.unwrap(),
-        &proposal.to_string(),
-        force,
-    ) {
-        Ok(oid) => {
-            if verbose {
-                term::info!("Created note {} in monorepo.", oid);
-            }
-            spinner.finish();
-        }
-        Err(err) => {
-            spinner.failed();
-            return Err(anyhow!(err));
-        }
-    }
-    Refs::update(storage, urn)?;
+    // TODO(erikli): Activate or remove depending on remote-helper behaviour.
+    // let spinner = term::spinner(&format!("Creating note in monorepo."));
+    // let profile = profile::default()?;
+    // let repo = git2::Repository::open_bare(storage.as_ref().path())?;
+    // let monorepo = profile::monorepo(&profile)?;
+    // match monorepo.note(
+    //     &monorepo.signature()?,
+    //     &monorepo.signature()?,
+    //     Some(&format!("refs/namespaces/{}/refs/notes/commits", urn.encode_id())),
+    //     head_ref.unwrap(),
+    //     &proposal.to_string(),
+    //     force,
+    // ) {
+    //     Ok(oid) => {
+    //         if verbose {
+    //             term::info!("Created note {} in monorepo.", oid);
+    //         }
+    //         spinner.finish();
+    //     }
+    //     Err(err) => {
+    //         spinner.failed();
+    //         return Err(anyhow!(err));
+    //     }
+    // }
+    // Refs::update(storage, urn)?;
 
     Ok(proposal)
 }

@@ -1,15 +1,10 @@
-use std::convert::TryInto;
 use std::ffi::OsString;
 
-use anyhow::{anyhow, bail};
+use anyhow::anyhow;
 
 pub use git2::{Oid, Reference};
 
-use librad::canonical::Cstring;
-use librad::identities::payload::{self};
-use librad::PeerId;
-
-use rad_common::{git, keys, person, profile, project};
+use rad_common::{git, keys, profile, project, proposal};
 use rad_terminal::args::{Args, Error, Help};
 use rad_terminal::components as term;
 
@@ -49,8 +44,8 @@ impl Args for Options {
     }
 }
 
-pub fn run(_options: Options) -> anyhow::Result<()> {
-    let (urn, _) = project::cwd()
+pub fn run(options: rad_sync::Options) -> anyhow::Result<()> {
+    let (urn, repo) = project::cwd()
         .map_err(|_| anyhow!("this command must be run in the context of a project"))?;
 
     let profile = profile::default()?;
@@ -58,12 +53,16 @@ pub fn run(_options: Options) -> anyhow::Result<()> {
     let (_, storage) = keys::storage(&profile, sock)?;
     let project = project::get(&storage, &urn)?
         .ok_or_else(|| anyhow!("couldn't load project {} from local state", urn))?;
+        
+    let head = repo.head()?;
+    let current_branch = head.shorthand().unwrap_or("HEAD (no branch)");
 
-    term::headline("Creating merge proposal for your 🌱 project");
+    term::headline(&format!(
+        "🌱 Creating merge proposal for {}.",
+        term::format::highlight(project.name)
+    ));
 
-    // let meta: project::Metadata = project.try_into()?;
-
-    let repo = project::repository()?;
+    // TODO(erikli): get remote instead: find_remote(name: &str)
     let master = repo
         .resolve_reference_from_short_name(&format!("rad/{}", project.default_branch))?
         .target();
@@ -71,47 +70,97 @@ pub fn run(_options: Options) -> anyhow::Result<()> {
         .map(|h| format!("{:.7}", h.to_string()))
         .unwrap_or_else(String::new);
 
-    let head = repo.head()?.target();
-    let head_oid = head
+    let head_ref = head.target();
+    let head_oid = head_ref
         .map(|h| format!("{:.7}", h.to_string()))
         .unwrap_or_else(String::new);
 
     term::info!(
-        "Comparing {} ({}) <= {} ({})",
-        term::format::highlight(project.default_branch),
+        "Proposing {} ({}) <= {} ({}).",
+        term::format::highlight(project.default_branch.clone()),
         term::format::secondary(master_oid),
-        term::format::highlight(repo.head()?.shorthand().unwrap_or("HEAD (no branch)")),
-        term::format::secondary(head_oid),
+        term::format::highlight(&current_branch),
+        term::format::secondary(head_oid.clone()),
     );
 
-    let merge_base = repo.merge_base(master.unwrap_or(Oid::zero()), head.unwrap_or(Oid::zero()));
+    let (ahead, behind) = repo.graph_ahead_behind(
+        head_ref.unwrap_or(Oid::zero()),
+        master.unwrap_or(Oid::zero()),
+    )?;
     term::info!(
-        "Found merge base {} ...",
-        term::format::secondary(merge_base
-            .map(|h| format!("{:.7}", h.to_string()))
-            .unwrap_or(String::new()))
+        "This branch is {} commit(s) ahead, {} commit(s) behind {}.",
+        term::format::highlight(ahead),
+        term::format::highlight(behind),
+        term::format::highlight(project.default_branch)
     );
-    // let mut table = term::Table::default();
 
-    // table.push([
-    //     term::format::bold("master"),
-    //     term::format::bold("fea"),
-    // ]);
+    let merge_base_ref = repo.merge_base(
+        master.unwrap_or(Oid::zero()),
+        head_ref.unwrap_or(Oid::zero()),
+    );
 
-    // table.push([
-    //     term::format::secondary(head.unwrap_or(Oid::zero())),
-    //     term::format::secondary(head.unwrap_or(Oid::zero())),
-    // ]);
+    git::list_commits(&repo, &merge_base_ref.unwrap(), &head_ref.unwrap(), true)?;
+    term::blank();
 
-    // table.render();
+    let update = proposal::exists(&repo)?;
+    if update {
+        if !term::confirm("Proposal already exists. Do you want to update?") {
+            return Err(anyhow!("Canceled."));
+        }
+    } else {
+        if !term::confirm_with_default("Create proposal using commit(s) above?", true) {
+            return Err(anyhow!("Canceled."));
+        }
+    }
+    term::blank();
 
-    // term::info!("master                                   <= HEAD");
-    // term::info!(
-    //     "{}    {}",
-    //     head.unwrap_or(Oid::zero()),
-    //     head.unwrap_or(Oid::zero())
-    // );
-    // let oid = repo.merge_base()?;
+    let proposal = match proposal::exists(&repo)? {
+        true => {
+            match repo.find_note(None, head_ref.unwrap()) {
+                Ok(note) => proposal::from_note(&note).unwrap(),
+                Err(_) => proposal::Proposal::default()
+            }
+        },
+        false => proposal::Proposal::default()
+    };
+
+    let title: String = term::text_input("Title", Some(proposal.meta.title))?;
+    let description = match term::Editor::new()
+        .edit(&proposal.description)
+        .unwrap()
+    {
+        Some(rv) => rv,
+        None => String::new(),
+    };
+    term::success!(
+        "{} {}",
+        term::format::tertiary_bold("Description".to_string()),
+        term::format::tertiary("·".to_string()),
+    );
+    term::markdown(&description);
+    term::blank();
+
+    if term::confirm_with_default("Submit using title and description?", true) {
+        term::blank();
+
+        // Create proposal and Radicle Upstream-compatible patch
+        let proposal = proposal::create(
+            &storage,
+            &repo,
+            &urn,
+            &title,
+            &description,
+            update,
+            options.verbose,
+        )?;
+        let _patch = proposal::create_patch(&repo, &proposal, update, options.verbose)?;
+
+        if term::confirm_with_default("Sync to seed?", true) {
+            rad_sync::run(options)?;
+        }
+    } else {
+        return Err(anyhow!("Canceled."));
+    }
 
     Ok(())
 }
