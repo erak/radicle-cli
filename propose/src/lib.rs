@@ -53,7 +53,7 @@ pub fn run(options: rad_sync::Options) -> anyhow::Result<()> {
     let (_, storage) = keys::storage(&profile, sock)?;
     let project = project::get(&storage, &urn)?
         .ok_or_else(|| anyhow!("couldn't load project {} from local state", urn))?;
-        
+
     let head = repo.head()?;
     let current_branch = head.shorthand().unwrap_or("HEAD (no branch)");
 
@@ -62,7 +62,6 @@ pub fn run(options: rad_sync::Options) -> anyhow::Result<()> {
         term::format::highlight(project.name)
     ));
 
-    // TODO(erikli): get remote instead: find_remote(name: &str)
     let master = repo
         .resolve_reference_from_short_name(&format!("rad/{}", project.default_branch))?
         .target();
@@ -78,9 +77,9 @@ pub fn run(options: rad_sync::Options) -> anyhow::Result<()> {
     term::info!(
         "Proposing {} ({}) <= {} ({}).",
         term::format::highlight(project.default_branch.clone()),
-        term::format::secondary(master_oid),
+        term::format::secondary(&master_oid),
         term::format::highlight(&current_branch),
-        term::format::secondary(head_oid.clone()),
+        term::format::secondary(&head_oid),
     );
 
     let (ahead, behind) = repo.graph_ahead_behind(
@@ -101,6 +100,13 @@ pub fn run(options: rad_sync::Options) -> anyhow::Result<()> {
 
     git::list_commits(&repo, &merge_base_ref.unwrap(), &head_ref.unwrap(), true)?;
     term::blank();
+
+    // TODO(erikli): Replace with repo.diff()
+    let workdir = repo.workdir().ok_or_else(|| anyhow!("Could not get workdir current repository."))?;
+    if term::confirm("View changes?") {
+        let diff = git::git(workdir, ["diff", &master_oid, &head_oid])?;
+        term::Editor::new().edit(&diff)?;
+    }
 
     let update = proposal::exists(&repo)?;
     if update {
