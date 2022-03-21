@@ -4,6 +4,9 @@ use anyhow::anyhow;
 
 pub use git2::{Oid, Reference};
 
+use librad::git::Storage;
+use librad::git::Urn;
+
 use rad_common::{git, keys, profile, project, proposal};
 use rad_terminal::args::{Args, Error, Help};
 use rad_terminal::components as term;
@@ -19,20 +22,33 @@ Usage
 
 Options
 
+    --create  Create a new merge proposal (default: false)
     --help    Print help
 "#,
 };
 
-pub struct Options {}
+#[derive(Default, Debug)]
+pub struct Options {
+    pub create: bool,
+    pub verbose: bool,
+}
 
 impl Args for Options {
     fn from_args(args: Vec<OsString>) -> anyhow::Result<(Self, Vec<OsString>)> {
         use lexopt::prelude::*;
 
         let mut parser = lexopt::Parser::from_args(args);
+        let mut create = false;
+        let mut verbose = false;
 
         if let Some(arg) = parser.next()? {
             match arg {
+                Long("create") | Short('c') => {
+                    create = true;
+                }
+                Long("verbose") | Short('v') => {
+                    verbose = true;
+                }
                 Long("help") => {
                     return Err(Error::Help.into());
                 }
@@ -40,11 +56,11 @@ impl Args for Options {
             }
         }
 
-        Ok((Options {}, vec![]))
+        Ok((Options { create, verbose }, vec![]))
     }
 }
 
-pub fn run(options: rad_sync::Options) -> anyhow::Result<()> {
+pub fn run(options: Options) -> anyhow::Result<()> {
     let (urn, repo) = project::cwd()
         .map_err(|_| anyhow!("this command must be run in the context of a project"))?;
 
@@ -54,6 +70,31 @@ pub fn run(options: rad_sync::Options) -> anyhow::Result<()> {
     let project = project::get(&storage, &urn)?
         .ok_or_else(|| anyhow!("couldn't load project {} from local state", urn))?;
 
+    if options.create {
+        create(project, &repo, storage, urn, options.verbose)?;
+    } else {
+        list(project)?;
+    }
+
+    Ok(())
+}
+
+fn list(project: project::Metadata) -> anyhow::Result<()> {
+    term::headline(&format!(
+        "🌱 Listing merge proposals for {}.",
+        term::format::highlight(project.name)
+    ));
+
+    Ok(())
+}
+
+fn create(
+    project: project::Metadata,
+    repo: &git2::Repository,
+    storage: Storage,
+    urn: Urn,
+    verbose: bool,
+) -> anyhow::Result<()> {
     let head = repo.head()?;
     let current_branch = head.shorthand().unwrap_or("HEAD (no branch)");
 
@@ -102,7 +143,9 @@ pub fn run(options: rad_sync::Options) -> anyhow::Result<()> {
     term::blank();
 
     // TODO(erikli): Replace with repo.diff()
-    let workdir = repo.workdir().ok_or_else(|| anyhow!("Could not get workdir current repository."))?;
+    let workdir = repo
+        .workdir()
+        .ok_or_else(|| anyhow!("Could not get workdir current repository."))?;
     if term::confirm("View changes?") {
         let diff = git::git(workdir, ["diff", &master_oid, &head_oid])?;
         term::Editor::new().edit(&diff)?;
@@ -121,20 +164,15 @@ pub fn run(options: rad_sync::Options) -> anyhow::Result<()> {
     term::blank();
 
     let proposal = match proposal::exists(&repo)? {
-        true => {
-            match repo.find_note(None, head_ref.unwrap()) {
-                Ok(note) => proposal::from_note(&note).unwrap(),
-                Err(_) => proposal::Proposal::default()
-            }
+        true => match repo.find_note(None, head_ref.unwrap()) {
+            Ok(note) => proposal::from_note(&note).unwrap(),
+            Err(_) => proposal::Proposal::default(),
         },
-        false => proposal::Proposal::default()
+        false => proposal::Proposal::default(),
     };
 
     let title: String = term::text_input("Title", Some(proposal.meta.title))?;
-    let description = match term::Editor::new()
-        .edit(&proposal.description)
-        .unwrap()
-    {
+    let description = match term::Editor::new().edit(&proposal.description).unwrap() {
         Some(rv) => rv,
         None => String::new(),
     };
@@ -150,19 +188,21 @@ pub fn run(options: rad_sync::Options) -> anyhow::Result<()> {
         term::blank();
 
         // Create proposal and Radicle Upstream-compatible patch
-        let proposal = proposal::create(
-            &storage,
-            &repo,
-            &urn,
-            &title,
-            &description,
-            update,
-            options.verbose,
-        )?;
-        let _patch = proposal::create_patch(&repo, &proposal, update, options.verbose)?;
+        let proposal =
+            proposal::create(&storage, &repo, &urn, &title, &description, update, verbose)?;
+        let _patch = proposal::create_patch(&repo, &proposal, update, verbose)?;
 
         if term::confirm_with_default("Sync to seed?", true) {
-            rad_sync::run(options)?;
+            let sync_options = rad_sync::Options {
+                origin: None,
+                seed: None,
+                refs: rad_sync::Refs::DefaultBranch,
+                verbose: true,
+                fetch: false,
+                identity: false,
+                push_self: false,
+            };
+            rad_sync::run(sync_options)?;
         }
     } else {
         return Err(anyhow!("Canceled."));
