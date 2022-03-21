@@ -11,7 +11,10 @@ git2 = "0.13"
 anyhow = "1.0"
 librad = "0"
 lexopt = "0.2"
+serde_json = "1.0"
+serde = "1.0"
 lnk-profile = "0"
+lnk-identities = "0"
 rad-terminal = { path = "../terminal" }
 rad-common = { path = "../common" }
 rad-push = { path = "../push" }

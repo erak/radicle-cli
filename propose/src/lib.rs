@@ -4,8 +4,11 @@ use anyhow::anyhow;
 
 pub use git2::{Oid, Reference};
 
+// pub use librad::git::refs;
+// pub use librad::git::refs::Refs;
 use librad::git::Storage;
 use librad::git::Urn;
+pub use lnk_identities::refs;
 
 use rad_common::{git, keys, profile, project, proposal};
 use rad_terminal::args::{Args, Error, Help};
@@ -66,24 +69,42 @@ pub fn run(options: Options) -> anyhow::Result<()> {
 
     let profile = profile::default()?;
     let sock = keys::ssh_auth_sock();
-    let (_, storage) = keys::storage(&profile, sock)?;
+    let (signer, storage) = keys::storage(&profile, sock)?;
     let project = project::get(&storage, &urn)?
         .ok_or_else(|| anyhow!("couldn't load project {} from local state", urn))?;
 
     if options.create {
         create(project, &repo, storage, urn, options.verbose)?;
     } else {
-        list(project)?;
+        list(project, &repo, storage, urn, options.verbose)?;
     }
 
     Ok(())
 }
 
-fn list(project: project::Metadata) -> anyhow::Result<()> {
+fn list(
+    project: project::Metadata,
+    repo: &git2::Repository,
+    storage: Storage,
+    urn: Urn,
+    verbose: bool,
+) -> anyhow::Result<()> {
     term::headline(&format!(
         "🌱 Listing merge proposals for {}.",
         term::format::highlight(project.name)
     ));
+
+    term::info!(
+        "{} outgoing {}, {} incoming {}.",
+        term::format::highlight(repo.notes(None)?.count()),
+        term::format::bold("[↑]"),
+        term::format::highlight("0"),
+        term::format::bold("[↓]")
+    );
+    term::blank();
+
+    let profile = profile::default()?;
+    proposal::list_outgoing(&profile, &urn, verbose)?;
 
     Ok(())
 }

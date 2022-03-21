@@ -12,6 +12,7 @@ ethereum = ["ethers", "coins-bip32", "async-trait", "hex"]
 anyhow = "1.0"
 base64 = "0.13"
 byteorder = "1.4"
+chrono = "0.4"
 either = { version = "1.6" }
 git-repository = "0.14"
 git2 = "0.13"
