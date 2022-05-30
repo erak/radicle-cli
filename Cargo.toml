@@ -37,6 +37,7 @@ assets = [
     ["target/release/rad-checkout", "usr/bin/rad-checkout", "755"],
     ["target/release/rad-untrack", "usr/bin/rad-untrack", "755"],
     ["target/release/rad-remote", "usr/bin/rad-remote", "755"],
+    ["target/release/rad-tui", "usr/bin/rad-tui", "755"],
     ["target/release/rad-gov", "usr/bin/rad-gov", "755"],
     ["target/release/rad-edit", "usr/bin/rad-edit", "755"],
     ["target/release/git-remote-rad", "usr/bin/git-remote-rad", "755"],
@@ -69,6 +70,7 @@ rad-remote = { path = "./remote" }
 rad-checkout = { path = "./checkout" }
 rad-path = { path = "./path" }
 rad-track = { path = "./track" }
+rad-tui = { path = "./tui" }
 rad-untrack = { path = "./untrack" }
 rad-help = { path = "./help" }
 rad-ls = { path = "./ls" }
@@ -127,6 +129,7 @@ members = [
   "remote",
   "sync",
   "self",
+  "tui",
   "inspect",
   "track",
   "untrack",

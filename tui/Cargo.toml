@@ -1,0 +1,21 @@
+[package]
+name = "rad-tui"
+version = "0.1.0"
+authors = ["The Radicle Team <dev@radicle.xyz>"]
+edition = "2018"
+license = "GPL-3.0-or-later"
+description = "Radicle terminal UI"
+
+[dependencies]
+anyhow = "1.0"
+crossterm = { version = "0.23" }
+fastrand = "1.6"
+lexopt = { version = "0.2" }
+librad = "0"
+lnk-clib = "0"
+lnk-profile = "0"
+radicle-common = { path = "../common" }
+radicle-terminal = { path = "../terminal" }
+rand = { version = "0.8" }
+tui = { version = "0.18.0" }
+url = { version = "*" }
