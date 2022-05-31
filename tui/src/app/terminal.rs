@@ -59,7 +59,7 @@ fn run<B: Backend>(
             InputEvent::Tick => app.on_tick(),
         };
         
-        if app.should_quit {
+        if app.state.should_quit {
             return Ok(());
         }
     }
