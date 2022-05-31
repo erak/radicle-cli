@@ -1,7 +1,10 @@
+pub mod events;
+pub mod keys;
+
 use std::io;
 use std::time::{Duration, Instant};
 
-use crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent};
+use crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, Event};
 use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
@@ -11,6 +14,8 @@ use tui::backend::{Backend, CrosstermBackend};
 use tui::Terminal;
 
 use crate::app::{App, ui};
+use events::InputEvent;
+use keys::Key;
 
 pub fn exec(mut app: App, tick_rate: Duration) -> anyhow::Result<()> {
     enable_raw_mode()?;
@@ -50,11 +55,9 @@ fn run<B: Backend>(
             .unwrap_or_else(|| Duration::from_secs(0));
         if crossterm::event::poll(timeout)? {
             if let Event::Key(key) = event::read()? {
-                match key {
-                    KeyEvent {
-                        code: KeyCode::Char('q'),
-                        modifiers: event::KeyModifiers::NONE,
-                    } => app.on_quit(),
+                let event = InputEvent::Input(Key::from(key));
+                match event {
+                    InputEvent::Input(Key::Char('q')) => app.on_quit(),
                     _ => {}
                 }
             }
