@@ -1,13 +1,11 @@
-use crate::app::App;
+mod widgets;
 
-use tui::{
-    backend::Backend,
-    layout::{Constraint, Direction, Layout},
-    style::Style,
-    text::Span,
-    widgets::{Block, Borders, Paragraph, Wrap},
-    Frame,
-};
+use crate::app::App;
+use widgets::{Widget, MenuWidget};
+
+use tui::backend::Backend;
+use tui::layout::{Constraint, Direction, Layout};
+use tui::Frame;
 
 pub fn draw<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
     let chunks = Layout::default()
@@ -15,14 +13,6 @@ pub fn draw<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
         .constraints([Constraint::Max(3)].as_ref())
         .split(frame.size());
 
-    let title = match &app.state.project {
-        Some(project) => format!(" rad-tui({}) ", project.name),
-        None => " rad-tui ".to_owned(),
-    };
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(Span::styled(title, Style::default()));
-
-    frame.render_widget(block, chunks[0]);
+    let menu = MenuWidget::new(app);
+    menu.draw(frame, chunks[0]);
 }
