@@ -10,7 +10,7 @@ mod ui;
 use action::{Action, Bindings};
 use terminal::keys::Key;
 use ui::widgets::StatefulList;
-use ui::State;
+use ui::{State, View};
 
 pub struct App {
     pub context: state::Context,
@@ -22,14 +22,11 @@ impl App {
     pub fn new() -> App {
         App {
             context: state::Context::default(),
-            state: State {
-                menu: StatefulList::with_items(vec![
-                    "🌱 Status".to_owned(),
-                    "Issues".to_owned(),
-                    "Patches".to_owned(),
-                ]),
-                should_quit: false,
-            },
+            state: State::new(StatefulList::with_items(vec![
+                "Status".to_owned(),
+                "Issues".to_owned(),
+                "Patches".to_owned(),
+            ])),
             bindings: Bindings::new(),
         }
     }
@@ -37,6 +34,9 @@ impl App {
     pub fn on_key(&mut self, key: Key) {
         match &self.bindings.get(key) {
             Action::Quit => self.state.should_quit = true,
+            Action::MenuStatus => self.state.select_view(View::Status),
+            Action::MenuIssues => self.state.select_view(View::Issues),
+            Action::MenuPatches => self.state.select_view(View::Patches),
             _ => {}
         };
     }
