@@ -1,20 +1,12 @@
 #![allow(clippy::or_fun_call)]
-
-// mod state;
-// pub mod app;
-// pub mod backend;
-// use app::backend;
-// mod ui;
-
 mod app;
-// use crate::app;
 
 use std::ffi::OsString;
 use std::time::Duration;
 
 use radicle_common::args::{Args, Error, Help};
 
-pub const TICK_RATE: u64 = 250;
+pub const TICK_RATE: u64 = 200;
 
 pub const HELP: Help = Help {
     name: "tui",

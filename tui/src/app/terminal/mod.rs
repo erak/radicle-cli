@@ -1,10 +1,12 @@
 pub mod events;
 pub mod keys;
 
-use std::io;
-use std::time::{Duration, Instant};
+use std::cell::RefCell;
+use std::io::stdout;
+use std::rc::Rc;
+use std::time::Duration;
 
-use crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, Event};
+use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
 use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
@@ -14,12 +16,12 @@ use tui::backend::{Backend, CrosstermBackend};
 use tui::Terminal;
 
 use crate::app::{App, ui};
-use events::InputEvent;
+use events::{Events, InputEvent};
 use keys::Key;
 
-pub fn exec(mut app: App, tick_rate: Duration) -> anyhow::Result<()> {
+pub fn exec(app: Rc<RefCell<App>>, tick_rate: Duration) -> anyhow::Result<()> {
     enable_raw_mode()?;
-    let mut stdout = io::stdout();
+    let mut stdout = stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
@@ -43,29 +45,22 @@ pub fn exec(mut app: App, tick_rate: Duration) -> anyhow::Result<()> {
 
 fn run<B: Backend>(
     terminal: &mut Terminal<B>,
-    mut app: App,
+    app: Rc<RefCell<App>>,
     tick_rate: Duration,
-) -> io::Result<()> {
-    let mut last_tick = Instant::now();
+) -> anyhow::Result<()> {
+    let events = Events::new(tick_rate);
+    
     loop {
+        let mut app = app.borrow_mut();
+
         terminal.draw(|f| ui::draw(f, &mut app))?;
 
-        let timeout = tick_rate
-            .checked_sub(last_tick.elapsed())
-            .unwrap_or_else(|| Duration::from_secs(0));
-        if crossterm::event::poll(timeout)? {
-            if let Event::Key(key) = event::read()? {
-                let event = InputEvent::Input(Key::from(key));
-                match event {
-                    InputEvent::Input(Key::Char('q')) => app.on_quit(),
-                    _ => {}
-                }
-            }
-        }
-        if last_tick.elapsed() >= tick_rate {
-            app.on_tick();
-            last_tick = Instant::now();
-        }
+        match events.next()? {
+            InputEvent::Input(Key::Char('q')) => app.on_quit(),
+            InputEvent::Tick => app.on_tick(),
+            _ => {},
+        };
+        
         if app.should_quit {
             return Ok(());
         }

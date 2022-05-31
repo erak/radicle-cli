@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::time::Duration;
 
 mod terminal;
@@ -26,7 +28,7 @@ impl<'a> App<'a> {
 }
 
 pub fn exec(tick_rate: Duration) -> anyhow::Result<()> {
-    let mut app = App::new(" cc-demo ");
+    let app = Rc::new(RefCell::new(App::new(" cc-demo ")));
     terminal::exec(app, tick_rate)?;
 
     Ok(())
