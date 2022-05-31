@@ -4,7 +4,7 @@ use crate::app::terminal::keys::Key;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Action {
-    Quit,
+    Exit,
     MenuStatus,
     MenuIssues,
     MenuPatches,
@@ -19,7 +19,7 @@ impl Bindings {
     pub fn new() -> Self {
         let mut bindings = HashMap::new();
         
-        bindings.insert(Key::Char('q'), Action::Quit);
+        bindings.insert(Key::Char('q'), Action::Exit);
         bindings.insert(Key::Char('1'), Action::MenuStatus);
         bindings.insert(Key::Char('2'), Action::MenuIssues);
         bindings.insert(Key::Char('3'), Action::MenuPatches);

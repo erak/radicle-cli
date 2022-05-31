@@ -33,7 +33,7 @@ impl App {
 
     pub fn on_key(&mut self, key: Key) {
         match &self.bindings.get(key) {
-            Action::Quit => self.state.should_quit = true,
+            Action::Exit => self.state.request_exit(),
             Action::MenuStatus => self.state.select_view(View::Status),
             Action::MenuIssues => self.state.select_view(View::Issues),
             Action::MenuPatches => self.state.select_view(View::Patches),

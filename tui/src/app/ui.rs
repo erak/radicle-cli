@@ -14,14 +14,14 @@ pub enum View {
 
 pub struct State {
     menu: StatefulList<String>,
-    pub should_quit: bool,
+    should_exit: bool,
 }
 
 impl State {
     pub fn new(menu: StatefulList<String>) -> Self {
         State {
             menu: menu,
-            should_quit: false
+            should_exit: false
         }
     }
 
@@ -40,6 +40,14 @@ impl State {
             Some(2) => View::Patches,
             _ => View::Status,
         }
+    }
+
+    pub fn request_exit(&mut self) {
+        self.should_exit = true;
+    }
+
+    pub fn should_exit(&self) -> bool {
+        self.should_exit
     }
 }
 
