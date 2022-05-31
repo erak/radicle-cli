@@ -3,22 +3,23 @@ use std::rc::Rc;
 use std::time::Duration;
 
 mod action;
+mod state;
 mod terminal;
 mod ui;
 
 use terminal::keys::Key;
 use action::{Action, Bindings};
 
-pub struct App<'a> {
-    pub title: &'a str,
+pub struct App {
+    pub state: state::Context,
     pub should_quit: bool,
     pub bindings: Bindings,
 }
 
-impl<'a> App<'a> {
-    pub fn new(title: &'a str) -> App<'a> {
+impl App {
+    pub fn new() -> App {
         App {
-            title,
+            state: state::Context::default(),
             should_quit: false,
             bindings: Bindings::new()
         }
@@ -39,7 +40,7 @@ impl<'a> App<'a> {
 
 
 pub fn exec(tick_rate: Duration) -> anyhow::Result<()> {
-    let app = Rc::new(RefCell::new(App::new(" cc-demo ")));
+    let app = Rc::new(RefCell::new(App::new()));
     terminal::exec(app, tick_rate)?;
 
     Ok(())
