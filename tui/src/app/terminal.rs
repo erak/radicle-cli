@@ -17,7 +17,6 @@ use tui::Terminal;
 
 use crate::app::{App, ui};
 use events::{Events, InputEvent};
-use keys::Key;
 
 pub fn exec(app: Rc<RefCell<App>>, tick_rate: Duration) -> anyhow::Result<()> {
     enable_raw_mode()?;
@@ -56,9 +55,8 @@ fn run<B: Backend>(
         terminal.draw(|f| ui::draw(f, &mut app))?;
 
         match events.next()? {
-            InputEvent::Input(Key::Char('q')) => app.on_quit(),
+            InputEvent::Input(key) => app.on_key(key),
             InputEvent::Tick => app.on_tick(),
-            _ => {},
         };
         
         if app.should_quit {
