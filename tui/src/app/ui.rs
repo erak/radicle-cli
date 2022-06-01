@@ -1,7 +1,7 @@
 pub mod widgets;
 
 use crate::app::App;
-use widgets::{ApplicationWindow, MenuWidget, Window, StatefulList};
+use widgets::{ActionWidget, ApplicationWindow, MenuWidget, ProjectWidget, StatefulList};
 
 use tui::backend::Backend;
 use tui::Frame;
@@ -9,7 +9,7 @@ use tui::Frame;
 pub enum View {
     Status,
     Issues,
-    Patches
+    Patches,
 }
 
 pub struct State {
@@ -21,7 +21,7 @@ impl State {
     pub fn new(menu: StatefulList<String>) -> Self {
         State {
             menu: menu,
-            should_exit: false
+            should_exit: false,
         }
     }
 
@@ -57,13 +57,15 @@ pub fn draw<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
         None => " 🌱 ".to_owned(),
     };
 
-    let menu = MenuWidget {
-        title: &title,
-        tabs: &mut app.state.menu
-    };
-
     let window = ApplicationWindow {
-        menu: menu
+        menu: MenuWidget {
+            title: &title,
+            tabs: &mut app.state.menu,
+        },
+        widgets: vec![ProjectWidget {
+            project: "demo".to_owned(),
+        }],
+        actions: ActionWidget { items: vec![] },
     };
 
     window.draw(frame);
