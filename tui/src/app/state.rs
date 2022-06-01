@@ -4,6 +4,9 @@ pub struct Identity {
 
 pub struct Project {
     pub name: String,
+    pub urn: String,
+    pub issues: (usize, usize),
+    pub patches: (usize, usize),
 }
 
 pub struct Context {
@@ -19,6 +22,9 @@ impl Default for Context {
             }),
             project: Some(Project {
                 name: "demo".to_owned(),
+                urn: "rad:git:hnrkcnewg4ekq1d18s1qzit4tqshkhqnqnefy".to_owned(),
+                issues: (16, 87),
+                patches: (5, 67),
             }),
         }
     }

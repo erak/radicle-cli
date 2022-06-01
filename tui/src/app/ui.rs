@@ -1,7 +1,7 @@
 pub mod widgets;
 
 use crate::app::App;
-use widgets::{ActionWidget, ApplicationWindow, MenuWidget, ProjectWidget, StatefulList};
+use widgets::{ActionWidget, ApplicationWindow, MenuWidget, PageWidget, ProjectWidget, StatefulList};
 
 use tui::backend::Backend;
 use tui::Frame;
@@ -57,14 +57,24 @@ pub fn draw<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
         None => " 🌱 ".to_owned(),
     };
 
+    let pages = match &app.context.project {
+        Some(project) => vec![PageWidget {
+            widgets: vec![ProjectWidget {
+                name: project.name.clone(),
+                urn: project.urn.clone(),
+                issues: project.issues.clone(),
+                patches: project.patches.clone()
+            }],
+        }],
+        None => vec![]
+    };
+
     let window = ApplicationWindow {
         menu: MenuWidget {
             title: &title,
             tabs: &mut app.state.menu,
         },
-        widgets: vec![ProjectWidget {
-            project: "demo".to_owned(),
-        }],
+        pages: pages,
         actions: ActionWidget { items: vec![] },
     };
 
