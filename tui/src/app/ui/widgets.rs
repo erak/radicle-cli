@@ -5,6 +5,24 @@ use tui::text::{Span, Spans};
 use tui::widgets::{Block, Borders, Cell, ListState, Paragraph, Row, Table, Tabs, Wrap};
 use tui::Frame;
 
+use crate::app::action::Action;
+
+pub enum View {
+    Status = 0,
+    Issues = 1,
+    Patches = 2,
+}
+
+impl ToString for View {
+    fn to_string(&self) -> String {
+        match self {
+            View::Status => "Status".to_owned(),
+            View::Issues => "Issues".to_owned(),
+            View::Patches => "Patches".to_owned(),
+        }
+    }
+}
+
 pub struct StatefulList<T> {
     pub state: ListState,
     pub items: Vec<T>,
@@ -20,65 +38,87 @@ impl<T> StatefulList<T> {
             items,
         }
     }
+
+    pub fn selected(&self) -> Option<usize> {
+        self.state.selected()
+    }
+
+    pub fn select(&mut self, index: usize) {
+        self.state.select(Some(index));
+    }
 }
 
-pub trait Draw {
-    fn draw<B: Backend>(&self, frame: &mut Frame<B>, area: Rect);
+pub trait Widget<B: Backend> {
+    fn draw(&self, frame: &mut Frame<B>, area: Rect);
+    fn on_action(&mut self, action: Action);
 }
 
-pub trait Focus {
-    fn focus(&self);
+pub trait ListWidget<B, T>: Widget<B>
+where
+    B: Backend,
+{
+    fn items(&self) -> &Box<StatefulList<T>>;
 }
 
-pub trait Index {
-    fn index(&self) -> Option<usize>;
+
+pub struct MenuWidget {
+    pub title: String,
+    pub views: Box<StatefulList<View>>,
 }
 
-pub trait Group {
-    fn group<B: Backend>(&self) -> Vec<Self>
-    where
-        Self: std::marker::Sized;
-}
-
-pub struct MenuWidget<'a> {
-    pub title: &'a String,
-    pub tabs: &'a StatefulList<String>,
-}
-
-impl Draw for MenuWidget<'_> {
-    fn draw<B: Backend>(&self, frame: &mut Frame<B>, area: Rect) {
+impl<B> Widget<B> for MenuWidget
+where
+    B: Backend,
+{
+    fn draw(&self, frame: &mut Frame<B>, area: Rect) {
         let titles = self
-            .tabs
+            .views
             .items
             .iter()
-            .map(|tab| Spans::from(Span::styled(tab, Style::default().fg(Color::Green))))
+            .map(|view| Spans::from(Span::styled(view.to_string(), Style::default().fg(Color::Green))))
             .collect();
 
-        let tabs = Tabs::new(titles)
+        let views = Tabs::new(titles)
             .block(
                 Block::default()
                     .borders(Borders::ALL)
-                    .title(Span::styled(self.title, Style::default())),
+                    .title(Span::styled(self.title.clone(), Style::default())),
             )
             .highlight_style(Style::default().fg(Color::Magenta))
-            .select(self.tabs.state.selected().unwrap_or(0));
+            .select(self.views.state.selected().unwrap_or(0));
 
-        frame.render_widget(tabs, area);
+        frame.render_widget(views, area);
+    }
+
+    fn on_action(&mut self, action: Action) {
+        match action {
+            Action::MenuStatus => self.views.select(0),
+            Action::MenuIssues => self.views.select(1),
+            Action::MenuPatches => self.views.select(2),
+            _ => {}
+        }
+
     }
 }
 
-impl Index for MenuWidget<'_> {
-    fn index(&self) -> Option<usize> {
-        self.tabs.state.selected()
+impl<B> ListWidget<B, View> for MenuWidget
+where
+    B: Backend,
+{
+    fn items(&self) -> &Box<StatefulList<View>> {
+        &self.views
     }
 }
 
-pub struct PageWidget<W: Draw + Focus> {
-    pub widgets: Vec<W>,
+pub struct PageWidget<B: Backend> {
+    pub widgets: Vec<Box<dyn Widget<B>>>,
 }
 
-impl<W: Draw + Focus> Draw for PageWidget<W> {
-    fn draw<B: Backend>(&self, frame: &mut Frame<B>, area: Rect) {
+impl<B> Widget<B> for PageWidget<B>
+where
+    B: Backend,
+{
+    fn draw(&self, frame: &mut Frame<B>, area: Rect) {
         let constraints = self
             .widgets
             .iter()
@@ -93,19 +133,30 @@ impl<W: Draw + Focus> Draw for PageWidget<W> {
             }
         }
     }
+
+    fn on_action(&mut self, _action: Action) {
+        // handle action that are of interest for this widget
+    }
 }
 
 pub struct ActionWidget<'a> {
     pub items: Vec<&'a String>,
 }
 
-impl Draw for ActionWidget<'_> {
-    fn draw<B: Backend>(&self, frame: &mut Frame<B>, area: Rect) {
+impl<B> Widget<B> for ActionWidget<'_>
+where
+    B: Backend,
+{
+    fn draw(&self, frame: &mut Frame<B>, area: Rect) {
         let text = vec![Spans::from("(Q)uit")];
         let block = Block::default().borders(Borders::NONE);
         let paragraph = Paragraph::new(text).block(block).wrap(Wrap { trim: true });
 
         frame.render_widget(paragraph, area);
+    }
+
+    fn on_action(&mut self, _action: Action) {
+        // handle action that are of interest for this widget
     }
 }
 
@@ -116,8 +167,11 @@ pub struct ProjectWidget {
     pub patches: (usize, usize),
 }
 
-impl Draw for ProjectWidget {
-    fn draw<B: Backend>(&self, frame: &mut Frame<B>, area: Rect) {
+impl<B> Widget<B> for ProjectWidget
+where
+    B: Backend,
+{
+    fn draw(&self, frame: &mut Frame<B>, area: Rect) {
         let rows = vec![
             Row::new(vec![Cell::from(Span::from("")), Cell::from(Span::from(""))]),
             Row::new(vec![
@@ -155,25 +209,23 @@ impl Draw for ProjectWidget {
             .widths(&[Constraint::Ratio(1, 8), Constraint::Ratio(7, 8)]);
         frame.render_widget(table, area);
     }
+
+    fn on_action(&mut self, _action: Action) {
+        // handle action that are of interest for this widget
+    }
 }
 
-impl Focus for ProjectWidget {
-    fn focus(&self) {}
+pub struct ApplicationWindow<'a, B: Backend> {
+    pub menu: Box<dyn ListWidget<B, View>>,
+    pub pages: Vec<PageWidget<B>>,
+    pub actions: ActionWidget<'a>,
 }
 
-pub struct ApplicationWindow<M: Draw + Index, P: Draw, A: Draw> {
-    pub menu: M,
-    pub pages: Vec<P>,
-    pub actions: A,
-}
-
-impl<M, P, A> ApplicationWindow<M, P, A>
+impl<'a, B> ApplicationWindow<'a, B>
 where
-    M: Draw + Index,
-    P: Draw,
-    A: Draw,
+    B: Backend,
 {
-    pub fn draw<B: Backend>(&self, frame: &mut Frame<B>) {
+    pub fn draw(&self, frame: &mut Frame<B>) {
         let chunks = Layout::default()
             .constraints(
                 [
@@ -186,9 +238,13 @@ where
             .split(frame.size());
 
         self.menu.draw(frame, chunks[0]);
-        if let Some(page) = self.pages.get(self.menu.index().unwrap_or(0)) {
+        if let Some(page) = self.pages.get(self.menu.items().selected().unwrap_or(0)) {
             page.draw(frame, chunks[1]);
         }
         self.actions.draw(frame, chunks[2]);
+    }
+
+    pub fn on_action(&mut self, action: Action) {
+        self.menu.on_action(action);
     }
 }

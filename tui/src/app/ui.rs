@@ -1,44 +1,33 @@
 pub mod widgets;
 
+use std::cell::RefCell;
+use std::io::stdout;
+use std::rc::Rc;
+use std::time::Duration;
+
+use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
+use crossterm::execute;
+use crossterm::terminal::{
+    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+};
+
+use tui::backend::{Backend, CrosstermBackend};
+use tui::Terminal;
+
 use crate::app::App;
-use widgets::{ActionWidget, ApplicationWindow, MenuWidget, PageWidget, ProjectWidget, StatefulList};
+use crate::app::terminal::events::{InputEvent, Events};
 
-use tui::backend::Backend;
-use tui::Frame;
+use widgets::{ApplicationWindow, MenuWidget, StatefulList, View};
 
-pub enum View {
-    Status,
-    Issues,
-    Patches,
-}
 
 pub struct State {
-    menu: StatefulList<String>,
-    should_exit: bool,
+    pub should_exit: bool,
 }
 
 impl State {
-    pub fn new(menu: StatefulList<String>) -> Self {
+    pub fn new() -> Self {
         State {
-            menu: menu,
             should_exit: false,
-        }
-    }
-
-    pub fn select_view(&mut self, view: View) {
-        match view {
-            View::Status => self.menu.state.select(Some(0)),
-            View::Issues => self.menu.state.select(Some(1)),
-            View::Patches => self.menu.state.select(Some(2)),
-        }
-    }
-
-    pub fn view(&self) -> View {
-        match self.menu.state.selected() {
-            Some(0) => View::Status,
-            Some(1) => View::Issues,
-            Some(2) => View::Patches,
-            _ => View::Status,
         }
     }
 
@@ -51,32 +40,84 @@ impl State {
     }
 }
 
-pub fn draw<B: Backend>(frame: &mut Frame<B>, app: &mut App) {
+pub fn exec(app: Rc<RefCell<App>>, tick_rate: Duration) -> anyhow::Result<()> {
+    enable_raw_mode()?;
+    let mut stdout = stdout();
+    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+
+    let res = run(&mut terminal, app, tick_rate);
+
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
+
+    if let Err(err) = res {
+        println!("{:?}", err)
+    }
+
+    Ok(())
+}
+
+fn run<B: Backend>(
+    terminal: &mut Terminal<B>,
+    app: Rc<RefCell<App>>,
+    tick_rate: Duration,
+) -> anyhow::Result<()> {
+    let events = Events::new(tick_rate);
+
+    let mut app = app.borrow_mut();
+
     let title = match &app.context.project {
         Some(project) => format!(" 🌱 {} ", project.name),
         None => " 🌱 ".to_owned(),
     };
-
     let pages = match &app.context.project {
-        Some(project) => vec![PageWidget {
-            widgets: vec![ProjectWidget {
+        Some(project) => vec![widgets::PageWidget {
+            widgets: vec![Box::new(widgets::ProjectWidget {
                 name: project.name.clone(),
                 urn: project.urn.clone(),
                 issues: project.issues.clone(),
                 patches: project.patches.clone()
-            }],
+            })],
         }],
-        None => vec![]
+        None => vec![],
     };
 
-    let window = ApplicationWindow {
-        menu: MenuWidget {
-            title: &title,
-            tabs: &mut app.state.menu,
-        },
+
+    let mut window = ApplicationWindow {
+        menu: Box::new(MenuWidget {
+            title: title,
+            views: Box::new(StatefulList::with_items(vec![
+                View::Status,
+                View::Issues,
+                View::Patches,
+            ])),
+        }),
         pages: pages,
-        actions: ActionWidget { items: vec![] },
+        actions: widgets::ActionWidget { items: vec![] },
     };
+    
+    loop {
+        terminal.draw(|f| window.draw(f))?;
 
-    window.draw(frame);
+        match events.next()? {
+            InputEvent::Input(key) => {
+                let action = &app.bindings.get(key);
+
+                app.on_key(key);
+                window.on_action(*action);
+            },
+            InputEvent::Tick => app.on_tick(),
+        };
+        
+        if app.state.should_exit() {
+            return Ok(());
+        }
+    }
 }
