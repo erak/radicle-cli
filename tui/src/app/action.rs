@@ -8,6 +8,8 @@ pub enum Action {
     MenuStatus,
     MenuIssues,
     MenuPatches,
+    BrowseUp,
+    BrowseDown,
     Unknown,
 }
 
@@ -23,6 +25,9 @@ impl Bindings {
         bindings.insert(Key::Char('1'), Action::MenuStatus);
         bindings.insert(Key::Char('2'), Action::MenuIssues);
         bindings.insert(Key::Char('3'), Action::MenuPatches);
+
+        bindings.insert(Key::Up, Action::BrowseUp);
+        bindings.insert(Key::Down, Action::BrowseDown);
     
         Bindings {
             map: bindings

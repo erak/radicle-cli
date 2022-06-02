@@ -7,6 +7,13 @@ pub struct Project {
     pub urn: String,
     pub issues: (usize, usize),
     pub patches: (usize, usize),
+    pub issue_list: Vec<Issue>,
+}
+
+#[derive(Clone)]
+pub struct Issue {
+    pub title: String,
+    pub author: String,
 }
 
 pub struct Context {
@@ -25,6 +32,20 @@ impl Default for Context {
                 urn: "rad:git:hnrkcnewg4ekq1d18s1qzit4tqshkhqnqnefy".to_owned(),
                 issues: (16, 87),
                 patches: (5, 67),
+                issue_list: vec![
+                    Issue {
+                        title: "Issue #1".to_owned(),
+                        author: "sebastinez".to_owned(),
+                    },
+                    Issue {
+                        title: "Issue #2".to_owned(),
+                        author: "cloudhead".to_owned(),
+                    },
+                    Issue {
+                        title: "Issue #3".to_owned(),
+                        author: "erikli".to_owned(),
+                    },
+                ],
             }),
         }
     }

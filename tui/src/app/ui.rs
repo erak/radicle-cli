@@ -14,11 +14,10 @@ use crossterm::terminal::{
 use tui::backend::{Backend, CrosstermBackend};
 use tui::Terminal;
 
+use crate::app::terminal::events::{Events, InputEvent};
 use crate::app::App;
-use crate::app::terminal::events::{InputEvent, Events};
 
 use widgets::{ApplicationWindow, MenuWidget, StatefulList, View};
-
 
 pub struct State {
     pub should_exit: bool,
@@ -26,9 +25,7 @@ pub struct State {
 
 impl State {
     pub fn new() -> Self {
-        State {
-            should_exit: false,
-        }
+        State { should_exit: false }
     }
 
     pub fn request_exit(&mut self) {
@@ -78,17 +75,23 @@ fn run<B: Backend>(
         None => " 🌱 ".to_owned(),
     };
     let pages = match &app.context.project {
-        Some(project) => vec![widgets::PageWidget {
-            widgets: vec![Box::new(widgets::ProjectWidget {
-                name: project.name.clone(),
-                urn: project.urn.clone(),
-                issues: project.issues.clone(),
-                patches: project.patches.clone()
-            })],
-        }],
+        Some(project) => vec![
+            widgets::PageWidget {
+                widgets: vec![Box::new(widgets::ProjectWidget {
+                    name: project.name.clone(),
+                    urn: project.urn.clone(),
+                    issues: project.issues.clone(),
+                    patches: project.patches.clone(),
+                })],
+            },
+            widgets::PageWidget {
+                widgets: vec![Box::new(widgets::BrowserWidget {
+                    issues: Box::new(StatefulList::with_items(project.issue_list.clone())),
+                })],
+            },
+        ],
         None => vec![],
     };
-
 
     let mut window = ApplicationWindow {
         menu: Box::new(MenuWidget {
@@ -96,13 +99,11 @@ fn run<B: Backend>(
             views: Box::new(StatefulList::with_items(vec![
                 View::Status,
                 View::Issues,
-                View::Patches,
             ])),
         }),
         pages: pages,
         actions: widgets::ActionWidget { items: vec![] },
     };
-    
     loop {
         terminal.draw(|f| window.draw(f))?;
 
@@ -112,10 +113,9 @@ fn run<B: Backend>(
 
                 app.on_key(key);
                 window.on_action(*action);
-            },
+            }
             InputEvent::Tick => app.on_tick(),
         };
-        
         if app.state.should_exit() {
             return Ok(());
         }
