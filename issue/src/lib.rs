@@ -12,6 +12,8 @@ use radicle_terminal as term;
 use cobs::issue::*;
 use cobs::Label;
 
+mod tui;
+
 pub const HELP: Help = Help {
     name: "issue",
     description: env!("CARGO_PKG_DESCRIPTION"),
@@ -44,6 +46,7 @@ pub enum OperationName {
     React,
     Delete,
     List,
+    Interactive,
 }
 
 impl Default for OperationName {
@@ -70,6 +73,7 @@ pub enum Operation {
         description: Option<String>,
     },
     List,
+    Interactive,
 }
 
 /// Tool options.
@@ -116,6 +120,7 @@ impl Args for Options {
                     "l" | "list" => op = Some(OperationName::List),
                     "r" | "react" => op = Some(OperationName::React),
                     "c" | "comment" => op = Some(OperationName::Comment),
+                    "i" | "interactive" => op = Some(OperationName::Interactive),
 
                     unknown => anyhow::bail!("unknown operation '{}'", unknown),
                 },
@@ -149,6 +154,7 @@ impl Args for Options {
                 id: id.ok_or_else(|| anyhow!("an issue id to comment must be provided"))?,
                 description,
             },
+            OperationName::Interactive => Operation::Interactive,
         };
 
         Ok((Options { op }, vec![]))
@@ -228,6 +234,9 @@ pub fn run(options: Options) -> anyhow::Result<()> {
             if let Some(text) = term::Editor::new().edit(&doc)? {
                 issues.comment(&project, &id, &text)?;
             }
+        }
+        Operation::Interactive => {
+            tui::run()?;
         }
     }
 

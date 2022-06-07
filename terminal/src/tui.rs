@@ -42,8 +42,10 @@ impl Application {
         Ok(())
     }
 
-    fn run<B: Backend>(self, terminal: &mut Terminal<B>) -> anyhow::Result<()> {
-        let mut window = window::ApplicationWindow { title: self.title.clone() };
+    fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> anyhow::Result<()> {
+        let mut window = window::ApplicationWindow {
+            title: self.title.clone(),
+        };
         loop {
             terminal.draw(|f| window.draw(f))?;
         }
