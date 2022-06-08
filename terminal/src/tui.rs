@@ -46,8 +46,14 @@ impl Application {
         let mut window = window::ApplicationWindow {
             title: self.title.clone(),
         };
+        let events = Events::new(Duration::from_millis(TICK_RATE));
+
         loop {
             terminal.draw(|f| window.draw(f))?;
+
+            match events.next()? {
+            };
+
         }
     }
 }
