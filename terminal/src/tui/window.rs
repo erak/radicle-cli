@@ -1,6 +1,6 @@
 use tui::backend::Backend;
 use tui::layout::{Constraint, Layout, Rect};
-use tui::style::Style;
+use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
 use tui::widgets::{Block, Borders, Paragraph, Wrap};
 use tui::Frame;
@@ -23,11 +23,22 @@ where
             Some(Value::String(title)) => title.clone(),
             Some(_) | None => String::new(),
         };
-        let widget = Block::default()
+        let project = match state.get("state.project.name") {
+            Some(Value::String(name)) => name.clone(),
+            Some(_) | None => String::new(),
+        };
+        let block = Block::default()
             .borders(Borders::ALL)
             .title(Span::styled(format!(" {title} "), Style::default()));
+        let info = vec![Spans::from(Span::styled(
+            format!(" {project}"),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ))];
+        let menu = Paragraph::new(info).block(block).wrap(Wrap { trim: false });
 
-        frame.render_widget(widget, area);
+        frame.render_widget(menu, area);
     }
 }
 
