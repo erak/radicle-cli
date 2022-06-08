@@ -236,7 +236,11 @@ pub fn run(options: Options) -> anyhow::Result<()> {
             }
         }
         Operation::Interactive => {
-            tui::run()?;
+            if let Some(metadata) = project::get(&storage, &project)? {
+                tui::run(&metadata)?;
+            } else {
+                anyhow::bail!("could not load project metadata");
+            }
         }
     }
 
