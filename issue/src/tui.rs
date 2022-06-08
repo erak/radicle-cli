@@ -1,9 +1,9 @@
 use anyhow::Result;
-
 use radicle_terminal as term;
+use term::tui::Application;
 
 pub fn run() -> Result<()> {
-    let application = term::tui::Application::new("issues".to_owned());
+    let mut application = Application::new("rad issue".to_owned());
     application.execute()?;
     
     Ok(())
