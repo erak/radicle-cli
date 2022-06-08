@@ -12,33 +12,14 @@ use tui::backend::{Backend, CrosstermBackend};
 use tui::Terminal;
 
 pub mod events;
+pub mod store;
 pub mod window;
 
 use events::{Events, InputEvent, Key};
+use store::{State, Value, STATE_RUNNING};
 
 pub const TICK_RATE: u64 = 200;
-
-pub const STATE_RUNNING: &str = "state.running";
 pub const ACTION_QUIT: &str = "action.quit";
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Value {
-    Bool(bool),
-}
-
-pub struct State {
-    values: HashMap<String, Value>,
-}
-
-impl Default for State {
-    fn default() -> Self {
-        let mut state = State {
-            values: HashMap::new(),
-        };
-        state.values.insert(STATE_RUNNING.to_owned(), Value::Bool(true));
-        state
-    }
-}
 
 pub type BoxedAction = Box<dyn Action>;
 pub trait Action {
