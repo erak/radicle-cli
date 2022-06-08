@@ -17,7 +17,7 @@ pub mod window;
 
 use events::{Events, InputEvent, Key};
 use store::{State, Value, STATE_RUNNING};
-use window::{EmptyWidget, ShortcutWidget};
+use window::{EmptyWidget, MenuWidget, ShortcutWidget};
 
 pub const TICK_RATE: u64 = 200;
 pub const ACTION_QUIT: &str = "action.quit";
@@ -37,16 +37,14 @@ impl Action for QuitAction {
 }
 
 pub struct Application {
-    title: String,
     bindings: HashMap<Key, String>,
     actions: HashMap<String, BoxedAction>,
     state: State,
 }
 
 impl Application {
-    pub fn new(title: String) -> Self {
+    pub fn new() -> Self {
         Application {
-            title: title,
             ..Default::default()
         }
     }
@@ -77,7 +75,7 @@ impl Application {
 
     fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> anyhow::Result<()> {
         let window = window::ApplicationWindow {
-            title: self.title.clone(),
+            menu: Box::new(MenuWidget),
             content: Box::new(EmptyWidget),
             shortcuts: Box::new(ShortcutWidget),
         };
@@ -97,6 +95,10 @@ impl Application {
                 }
             }
         }
+    }
+
+    pub fn add_state(&mut self, id: &str, value: Value) {
+        self.state.values.insert(id.to_owned(), value);
     }
 
     pub fn add_binding(&mut self, key: Key, id: &str) {
@@ -121,7 +123,6 @@ impl Application {
 impl Default for Application {
     fn default() -> Self {
         let mut application = Application {
-            title: String::new(),
             bindings: HashMap::new(),
             actions: HashMap::new(),
             state: Default::default(),

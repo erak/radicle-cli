@@ -5,10 +5,30 @@ use tui::text::{Span, Spans};
 use tui::widgets::{Block, Borders, Paragraph, Wrap};
 use tui::Frame;
 
-use super::store::{State, Value, STATE_SHORTCUTS};
+use super::store::{State, Value, STATE_SHORTCUTS, STATE_TITLE};
 
 pub trait Widget<B: Backend> {
     fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State);
+}
+
+#[derive(Copy, Clone)]
+pub struct MenuWidget;
+
+impl<B> Widget<B> for MenuWidget
+where
+    B: Backend,
+{
+    fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State) {
+        let title = match state.values.get(STATE_TITLE) {
+            Some(Value::String(title)) => title.clone(),
+            Some(_) | None => String::new(),
+        };
+        let widget = Block::default()
+            .borders(Borders::ALL)
+            .title(Span::styled(format!(" {title} "), Style::default()));
+
+        frame.render_widget(widget, area);
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -47,7 +67,7 @@ where
 }
 
 pub struct ApplicationWindow<B: Backend> {
-    pub title: String,
+    pub menu: Box<dyn Widget<B>>,
     pub content: Box<dyn Widget<B>>,
     pub shortcuts: Box<dyn Widget<B>>,
 }
@@ -64,12 +84,9 @@ impl<B> ApplicationWindow<B> where B: Backend {
                 .as_ref(),
             )
             .split(frame.size());
-        let widget = Block::default()
-            .borders(Borders::ALL)
-            .title(Span::styled(self.title.clone(), Style::default()));
-
-        frame.render_widget(widget, chunks[0]);
-
+        
+        
+        self.menu.draw(frame, chunks[0], state);
         self.content.draw(frame, chunks[1], state);
         self.shortcuts.draw(frame, chunks[2], state);
     }

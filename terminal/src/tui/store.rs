@@ -2,10 +2,12 @@ use std::collections::HashMap;
 
 pub const STATE_RUNNING: &str = "state.running";
 pub const STATE_SHORTCUTS: &str = "state.shortcuts";
+pub const STATE_TITLE: &str = "state.title";
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Value {
     Bool(bool),
+    String(String),
     Strings(Vec<String>),
 }
 
