@@ -33,8 +33,22 @@ where
     }
 }
 
+#[derive(Copy, Clone)]
+pub struct EmptyWidget;
+
+impl<B> Widget<B> for EmptyWidget
+where
+    B: Backend,
+{
+    fn draw(&self, frame: &mut Frame<B>, area: Rect, _state: &State) {
+        let block = Block::default().borders(Borders::NONE);
+        frame.render_widget(block, area);
+    }
+}
+
 pub struct ApplicationWindow<B: Backend> {
     pub title: String,
+    pub content: Box<dyn Widget<B>>,
     pub shortcuts: Box<dyn Widget<B>>,
 }
 
@@ -45,7 +59,7 @@ impl<B> ApplicationWindow<B> where B: Backend {
                 [
                     Constraint::Length(3),
                     Constraint::Min(0),
-                    Constraint::Max(2),
+                    Constraint::Length(2),
                 ]
                 .as_ref(),
             )
@@ -55,6 +69,8 @@ impl<B> ApplicationWindow<B> where B: Backend {
             .title(Span::styled(self.title.clone(), Style::default()));
 
         frame.render_widget(widget, chunks[0]);
-        self.shortcuts.draw(frame, chunks[1], state);
+
+        self.content.draw(frame, chunks[1], state);
+        self.shortcuts.draw(frame, chunks[2], state);
     }
 }
