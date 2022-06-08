@@ -17,6 +17,7 @@ pub mod window;
 
 use events::{Events, InputEvent, Key};
 use store::{State, Value, STATE_RUNNING};
+use window::ShortcutWidget;
 
 pub const TICK_RATE: u64 = 200;
 pub const ACTION_QUIT: &str = "action.quit";
@@ -75,13 +76,14 @@ impl Application {
     }
 
     fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> anyhow::Result<()> {
-        let mut window = window::ApplicationWindow {
+        let window = window::ApplicationWindow {
             title: self.title.clone(),
+            shortcuts: Box::new(ShortcutWidget),
         };
         let events = Events::new(Duration::from_millis(TICK_RATE));
 
         loop {
-            terminal.draw(|f| window.draw(f))?;
+            terminal.draw(|f| window.draw(f, &self.state))?;
 
             match events.next()? {
                 InputEvent::Input(key) => self.on_key(&key),

@@ -1,23 +1,60 @@
 use tui::backend::Backend;
-use tui::layout::{Constraint, Layout};
+use tui::layout::{Constraint, Layout, Rect};
 use tui::style::Style;
-use tui::text::Span;
-use tui::widgets::{Block, Borders};
+use tui::text::{Span, Spans};
+use tui::widgets::{Block, Borders, Paragraph, Wrap};
 use tui::Frame;
 
-pub struct ApplicationWindow {
-    pub title: String,
+use super::store::{State, Value, STATE_SHORTCUTS};
+
+pub trait Widget<B: Backend> {
+    fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State);
 }
 
-impl ApplicationWindow {
-    pub fn draw<B: Backend>(&mut self, frame: &mut Frame<B>) {
+#[derive(Copy, Clone)]
+pub struct ShortcutWidget;
+
+impl<B> Widget<B> for ShortcutWidget
+where
+    B: Backend,
+{
+    fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State) {
+        let text = match state.values.get(STATE_SHORTCUTS) {
+            Some(Value::Strings(shortcuts)) => shortcuts
+                .iter()
+                .map(|s| Spans::from(Span::styled(s, Style::default())))
+                .collect(),
+            Some(_) | None => vec![],
+        };
+        let block = Block::default().borders(Borders::NONE);
+        let paragraph = Paragraph::new(text).block(block).wrap(Wrap { trim: true });
+
+        frame.render_widget(paragraph, area);
+    }
+}
+
+pub struct ApplicationWindow<B: Backend> {
+    pub title: String,
+    pub shortcuts: Box<dyn Widget<B>>,
+}
+
+impl<B> ApplicationWindow<B> where B: Backend {
+    pub fn draw(&self, frame: &mut Frame<B>, state: &State) {
         let chunks = Layout::default()
-            .constraints([Constraint::Length(3)].as_ref())
+            .constraints(
+                [
+                    Constraint::Length(3),
+                    Constraint::Min(0),
+                    Constraint::Max(2),
+                ]
+                .as_ref(),
+            )
             .split(frame.size());
         let widget = Block::default()
             .borders(Borders::ALL)
             .title(Span::styled(self.title.clone(), Style::default()));
 
         frame.render_widget(widget, chunks[0]);
+        self.shortcuts.draw(frame, chunks[1], state);
     }
 }
