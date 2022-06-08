@@ -16,7 +16,7 @@ pub mod store;
 pub mod window;
 
 use events::{Events, InputEvent, Key};
-use store::{State, Value, STATE_RUNNING};
+use store::{State, Value};
 use window::{EmptyWidget, MenuWidget, ShortcutWidget};
 
 pub const TICK_RATE: u64 = 200;
@@ -30,9 +30,7 @@ pub trait Action {
 pub struct QuitAction;
 impl Action for QuitAction {
     fn execute(&mut self, state: &mut State) {
-        if let Some(running) = state.values.get_mut(STATE_RUNNING) {
-            *running = Value::Bool(false);
-        }
+        state.set("state.running", Value::Bool(false));
     }
 }
 
@@ -42,7 +40,7 @@ pub struct Application {
     state: State,
 }
 
-impl Application {
+impl<'a> Application {
     pub fn new() -> Self {
         Application {
             ..Default::default()
@@ -89,7 +87,7 @@ impl Application {
                 InputEvent::Tick => self.on_tick(),
             };
 
-            if let Some(running) = self.state.values.get(STATE_RUNNING) {
+            if let Some(running) = self.state.get("state.running") {
                 if running == &Value::Bool(false) {
                     return Ok(());
                 }
@@ -98,7 +96,7 @@ impl Application {
     }
 
     pub fn add_state(&mut self, id: &str, value: Value) {
-        self.state.values.insert(id.to_owned(), value);
+        self.state.set(id, value);
     }
 
     pub fn add_binding(&mut self, key: Key, id: &str) {

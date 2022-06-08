@@ -1,9 +1,5 @@
 use std::collections::HashMap;
 
-pub const STATE_RUNNING: &str = "state.running";
-pub const STATE_SHORTCUTS: &str = "state.shortcuts";
-pub const STATE_TITLE: &str = "state.title";
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Value {
     Bool(bool),
@@ -12,7 +8,21 @@ pub enum Value {
 }
 
 pub struct State {
-    pub values: HashMap<String, Value>,
+    values: HashMap<String, Value>,
+}
+
+impl State {
+    pub fn set(&mut self, key: &str, value: Value) {
+        self.values.insert(String::from(key), value);
+    }
+
+    pub fn get(&self, key: &str) -> Option<&Value> {
+        self.values.get(&String::from(key))
+    }
+
+    pub fn get_mut(&mut self, key: &str) -> Option<&mut Value> {
+        self.values.get_mut(&String::from(key))
+    }
 }
 
 impl Default for State {
@@ -20,13 +30,9 @@ impl Default for State {
         let mut state = State {
             values: HashMap::new(),
         };
-        state
-            .values
-            .insert(STATE_RUNNING.to_owned(), Value::Bool(true));
-        state.values.insert(
-            STATE_SHORTCUTS.to_owned(),
-            Value::Strings(vec!["(Q)uit".to_owned()]),
-        );
+        let shortcuts = vec![String::from("(Q)uit")];
+        state.set("state.running", Value::Bool(true));
+        state.set("state.shortcuts", Value::Strings(shortcuts));
         state
     }
 }

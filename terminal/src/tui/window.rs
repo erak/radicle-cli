@@ -5,7 +5,7 @@ use tui::text::{Span, Spans};
 use tui::widgets::{Block, Borders, Paragraph, Wrap};
 use tui::Frame;
 
-use super::store::{State, Value, STATE_SHORTCUTS, STATE_TITLE};
+use super::store::{State, Value};
 
 pub trait Widget<B: Backend> {
     fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State);
@@ -19,7 +19,7 @@ where
     B: Backend,
 {
     fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State) {
-        let title = match state.values.get(STATE_TITLE) {
+        let title = match state.get("state.title") {
             Some(Value::String(title)) => title.clone(),
             Some(_) | None => String::new(),
         };
@@ -39,7 +39,7 @@ where
     B: Backend,
 {
     fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State) {
-        let text = match state.values.get(STATE_SHORTCUTS) {
+        let text = match state.get("state.shortcuts") {
             Some(Value::Strings(shortcuts)) => shortcuts
                 .iter()
                 .map(|s| Spans::from(Span::styled(s, Style::default())))
@@ -72,7 +72,10 @@ pub struct ApplicationWindow<B: Backend> {
     pub shortcuts: Box<dyn Widget<B>>,
 }
 
-impl<B> ApplicationWindow<B> where B: Backend {
+impl<B> ApplicationWindow<B>
+where
+    B: Backend,
+{
     pub fn draw(&self, frame: &mut Frame<B>, state: &State) {
         let chunks = Layout::default()
             .constraints(
@@ -84,8 +87,6 @@ impl<B> ApplicationWindow<B> where B: Backend {
                 .as_ref(),
             )
             .split(frame.size());
-        
-        
         self.menu.draw(frame, chunks[0], state);
         self.content.draw(frame, chunks[1], state);
         self.shortcuts.draw(frame, chunks[2], state);
