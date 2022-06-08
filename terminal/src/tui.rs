@@ -18,6 +18,9 @@ use events::{Events, InputEvent, Key};
 
 pub const TICK_RATE: u64 = 200;
 
+pub const STATE_RUNNING: &str = "state.running";
+pub const ACTION_QUIT: &str = "action.quit";
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Value {
     Bool(bool),
@@ -32,6 +35,7 @@ impl Default for State {
         let mut state = State {
             values: HashMap::new(),
         };
+        state.values.insert(STATE_RUNNING.to_owned(), Value::Bool(true));
         state
     }
 }
@@ -39,6 +43,15 @@ impl Default for State {
 pub type BoxedAction = Box<dyn Action>;
 pub trait Action {
     fn execute(&mut self, state: &mut State);
+}
+
+pub struct QuitAction;
+impl Action for QuitAction {
+    fn execute(&mut self, state: &mut State) {
+        if let Some(running) = state.values.get_mut(STATE_RUNNING) {
+            *running = Value::Bool(false);
+        }
+    }
 }
 
 pub struct Application {
@@ -94,6 +107,11 @@ impl Application {
                 InputEvent::Tick => self.on_tick(),
             };
 
+            if let Some(running) = self.state.values.get(STATE_RUNNING) {
+                if running == &Value::Bool(false) {
+                    return Ok(());
+                }
+            }
         }
     }
 
@@ -124,6 +142,8 @@ impl Default for Application {
             actions: HashMap::new(),
             state: Default::default(),
         };
+        application.add_action(ACTION_QUIT, Box::new(QuitAction));
+        application.add_binding(Key::Char('q'), ACTION_QUIT);
         application
     }
 }
