@@ -14,6 +14,7 @@ lazy_static = { version = "1.4.0" }
 librad = { version = "0" }
 radicle-terminal = { path = "../terminal" }
 radicle-common = { path = "../common" }
+tui = { version = "0.18.0" }
 serde_json = { version = "1.0" }
 serde_yaml = { version = "0.8" }
 serde = { version = "1.0" }
