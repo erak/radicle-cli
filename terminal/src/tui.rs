@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use std::io::stdout;
+use std::io::{stdout, Stdout};
+use std::rc::Rc;
 use std::time::Duration;
 
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
@@ -17,7 +18,7 @@ pub mod window;
 
 use events::{Events, InputEvent, Key};
 use store::{State, Value};
-use window::{EmptyWidget, MenuWidget, ShortcutWidget};
+use window::{MenuWidget, PageWidget, ShortcutWidget};
 
 pub const TICK_RATE: u64 = 200;
 pub const ACTION_QUIT: &str = "action.quit";
@@ -31,6 +32,7 @@ pub struct QuitAction;
 impl Action for QuitAction {
     fn execute(&mut self, state: &mut State) {
         state.set("state.running", Value::Bool(false));
+        state.set("state.view.page.index", Value::Index(0));
     }
 }
 
@@ -75,14 +77,17 @@ impl<'a> Application {
         }
     }
 
-    pub fn execute(&mut self) -> anyhow::Result<()> {
+    pub fn execute(
+        &mut self,
+        pages: Vec<PageWidget<CrosstermBackend<Stdout>>>,
+    ) -> anyhow::Result<()> {
         enable_raw_mode()?;
         let mut stdout = stdout();
         execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
 
-        let res = self.run(&mut terminal);
+        let res = self.run(&mut terminal, pages);
 
         disable_raw_mode()?;
         execute!(
@@ -99,11 +104,15 @@ impl<'a> Application {
         Ok(())
     }
 
-    fn run<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> anyhow::Result<()> {
+    fn run<B: Backend>(
+        &mut self,
+        terminal: &mut Terminal<B>,
+        pages: Vec<PageWidget<B>>,
+    ) -> anyhow::Result<()> {
         let window = window::ApplicationWindow {
-            menu: Box::new(MenuWidget),
-            content: Box::new(EmptyWidget),
-            shortcuts: Box::new(ShortcutWidget),
+            menu: Rc::new(MenuWidget),
+            pages: pages,
+            shortcuts: Rc::new(ShortcutWidget),
         };
         let events = Events::new(Duration::from_millis(TICK_RATE));
 
@@ -124,7 +133,7 @@ impl<'a> Application {
     }
 
     pub fn state(&mut self) -> &mut State {
-        & mut self.state
+        &mut self.state
     }
 
     pub fn bindings(&mut self) -> &mut Bindings {

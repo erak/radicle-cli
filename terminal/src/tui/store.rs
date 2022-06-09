@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Value {
+    Index(usize),
     Bool(bool),
     String(String),
     Strings(Vec<String>),

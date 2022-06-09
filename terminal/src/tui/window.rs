@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use tui::backend::Backend;
 use tui::layout::{Constraint, Layout, Rect};
 use tui::style::{Color, Modifier, Style};
@@ -77,10 +79,35 @@ where
     }
 }
 
+#[derive(Clone)]
+pub struct PageWidget<B: Backend> {
+    pub widgets: Vec<Rc<dyn Widget<B>>>,
+}
+
+impl<B> Widget<B> for PageWidget<B>
+where
+    B: Backend,
+{
+    fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State) {
+        let constraints = self
+            .widgets
+            .iter()
+            .map(|_| Constraint::Percentage(100 / self.widgets.len() as u16))
+            .collect::<Vec<_>>();
+        let chunks = Layout::default().constraints(constraints).split(area);
+
+        for widget in &self.widgets {
+            if let Some(chunk) = chunks.iter().next() {
+                widget.draw(frame, *chunk, state)
+            }
+        }
+    }
+}
+
 pub struct ApplicationWindow<B: Backend> {
-    pub menu: Box<dyn Widget<B>>,
-    pub content: Box<dyn Widget<B>>,
-    pub shortcuts: Box<dyn Widget<B>>,
+    pub menu: Rc<dyn Widget<B>>,
+    pub pages: Vec<PageWidget<B>>,
+    pub shortcuts: Rc<dyn Widget<B>>,
 }
 
 impl<B> ApplicationWindow<B>
@@ -98,8 +125,19 @@ where
                 .as_ref(),
             )
             .split(frame.size());
+
         self.menu.draw(frame, chunks[0], state);
-        self.content.draw(frame, chunks[1], state);
+        self.draw_active_page(frame, chunks[1], state);
         self.shortcuts.draw(frame, chunks[2], state);
+    }
+
+    pub fn draw_active_page(&self, frame: &mut Frame<B>, area: Rect, state: &State) {
+        let index: usize = match state.get("state.view.page.index") {
+            Some(Value::Index(index)) => index.clone(),
+            Some(_) | None => 0,
+        };
+        if let Some(page) = self.pages.get(index) {
+            page.draw(frame, area, state);
+        }
     }
 }
