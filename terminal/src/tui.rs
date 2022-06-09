@@ -48,9 +48,23 @@ impl Bindings {
     }
 }
 
+pub struct Actions {
+    entries: HashMap<String, BoxedAction>,
+}
+
+impl Actions {
+    pub fn add(&mut self, id: &str, action: BoxedAction) {
+        self.entries.insert(id.to_owned(), action);
+    }
+
+    pub fn get_mut(&mut self, id: &str) -> Option<&mut BoxedAction> {
+        self.entries.get_mut(&id.to_owned())
+    }
+}
+
 pub struct Application {
     bindings: Bindings,
-    actions: HashMap<String, BoxedAction>,
+    actions: Actions,
     state: State,
 }
 
@@ -117,8 +131,8 @@ impl<'a> Application {
         &mut self.bindings
     }
 
-    pub fn add_action(&mut self, id: &str, action: BoxedAction) {
-        self.actions.insert(id.to_owned(), action);
+    pub fn actions(&mut self) -> &mut Actions {
+        &mut self.actions
     }
 
     fn on_key(&mut self, key: &Key) {
@@ -138,10 +152,12 @@ impl Default for Application {
             bindings: Bindings {
                 entries: HashMap::new(),
             },
-            actions: HashMap::new(),
+            actions: Actions {
+                entries: HashMap::new(),
+            },
             state: Default::default(),
         };
-        application.add_action(ACTION_QUIT, Box::new(QuitAction));
+        application.actions().add(ACTION_QUIT, Box::new(QuitAction));
         application.bindings().add(Key::Char('q'), ACTION_QUIT);
         application
     }
