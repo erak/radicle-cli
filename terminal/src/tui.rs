@@ -34,8 +34,22 @@ impl Action for QuitAction {
     }
 }
 
+pub struct Bindings {
+    entries: HashMap<Key, String>,
+}
+
+impl Bindings {
+    pub fn add(&mut self, key: Key, id: &str) {
+        self.entries.insert(key, id.to_owned());
+    }
+
+    pub fn get(&self, key: Key) -> Option<&String> {
+        self.entries.get(&key)
+    }
+}
+
 pub struct Application {
-    bindings: HashMap<Key, String>,
+    bindings: Bindings,
     actions: HashMap<String, BoxedAction>,
     state: State,
 }
@@ -99,8 +113,8 @@ impl<'a> Application {
         self.state.set(id, value);
     }
 
-    pub fn add_binding(&mut self, key: Key, id: &str) {
-        self.bindings.insert(key, id.to_owned());
+    pub fn bindings(&mut self) -> &mut Bindings {
+        &mut self.bindings
     }
 
     pub fn add_action(&mut self, id: &str, action: BoxedAction) {
@@ -108,7 +122,7 @@ impl<'a> Application {
     }
 
     fn on_key(&mut self, key: &Key) {
-        if let Some(id) = self.bindings.get(key) {
+        if let Some(id) = self.bindings.get(*key) {
             if let Some(action) = self.actions.get_mut(id) {
                 action.execute(&mut self.state);
             }
@@ -121,12 +135,14 @@ impl<'a> Application {
 impl Default for Application {
     fn default() -> Self {
         let mut application = Application {
-            bindings: HashMap::new(),
+            bindings: Bindings {
+                entries: HashMap::new(),
+            },
             actions: HashMap::new(),
             state: Default::default(),
         };
         application.add_action(ACTION_QUIT, Box::new(QuitAction));
-        application.add_binding(Key::Char('q'), ACTION_QUIT);
+        application.bindings().add(Key::Char('q'), ACTION_QUIT);
         application
     }
 }
