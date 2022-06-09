@@ -123,8 +123,8 @@ impl<'a> Application {
         }
     }
 
-    pub fn add_state(&mut self, id: &str, value: Value) {
-        self.state.set(id, value);
+    pub fn state(&mut self) -> &mut State {
+        & mut self.state
     }
 
     pub fn bindings(&mut self) -> &mut Bindings {
