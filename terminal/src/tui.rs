@@ -17,7 +17,7 @@ pub mod store;
 pub mod window;
 
 use events::{Events, InputEvent, Key};
-use store::{State, Value};
+use store::State;
 use window::{MenuWidget, PageWidget, ShortcutWidget};
 
 pub const TICK_RATE: u64 = 200;
@@ -31,8 +31,8 @@ pub trait Action {
 pub struct QuitAction;
 impl Action for QuitAction {
     fn execute(&mut self, state: &mut State) {
-        state.set("state.running", Value::Bool(false));
-        state.set("state.view.page.index", Value::Index(0));
+        state.set("state.running", Box::new(false));
+        state.set("state.view.page.index", Box::new(0_usize));
     }
 }
 
@@ -124,8 +124,8 @@ impl<'a> Application {
                 InputEvent::Tick => self.on_tick(),
             };
 
-            if let Some(running) = self.state.get("state.running") {
-                if running == &Value::Bool(false) {
+            if let Some(running) = self.state.get::<bool>("state.running") {
+                if !running {
                     return Ok(());
                 }
             }

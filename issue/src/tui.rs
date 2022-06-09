@@ -14,10 +14,13 @@ pub fn run(project: &project::Metadata) -> Result<()> {
     let mut application = Application::new();
     application
         .state()
-        .set("state.title", Value::String("🌱".to_owned()));
+        .set("state.title", Box::new("🌱".to_owned()));
     application
         .state()
-        .set("state.project.name", Value::String(project.name.clone()));
+        .set("state.project.name", Box::new(project.name.clone()));
+    application
+        .state()
+        .set("state.issues.list", Box::new(project.name.clone()));
 
     let pages = vec![PageWidget {
         widgets: vec![Rc::new(EmptyWidget)],

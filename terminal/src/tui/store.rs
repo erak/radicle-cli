@@ -1,12 +1,7 @@
+use std::any::Any;
 use std::collections::HashMap;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Value {
-    Index(usize),
-    Bool(bool),
-    String(String),
-    Strings(Vec<String>),
-}
+pub type Value = Box<dyn Any>;
 
 pub struct State {
     values: HashMap<String, Value>,
@@ -17,12 +12,11 @@ impl State {
         self.values.insert(String::from(key), value);
     }
 
-    pub fn get(&self, key: &str) -> Option<&Value> {
-        self.values.get(&String::from(key))
-    }
-
-    pub fn get_mut(&mut self, key: &str) -> Option<&mut Value> {
-        self.values.get_mut(&String::from(key))
+    pub fn get<T: Any>(&self, key: &str) -> Option<&T> {
+        match self.values.get(key) {
+            Some(prop) => prop.downcast_ref::<T>(),
+            None => None,
+        }
     }
 }
 
@@ -32,8 +26,8 @@ impl Default for State {
             values: HashMap::new(),
         };
         let shortcuts = vec![String::from("(Q)uit")];
-        state.set("state.running", Value::Bool(true));
-        state.set("state.shortcuts", Value::Strings(shortcuts));
+        state.set("state.running", Box::new(true));
+        state.set("state.shortcuts", Box::new(shortcuts));
         state
     }
 }

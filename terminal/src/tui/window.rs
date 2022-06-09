@@ -7,7 +7,7 @@ use tui::text::{Span, Spans};
 use tui::widgets::{Block, Borders, Paragraph, Wrap};
 use tui::Frame;
 
-use super::store::{State, Value};
+use super::store::State;
 
 pub trait Widget<B: Backend> {
     fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State);
@@ -21,14 +21,12 @@ where
     B: Backend,
 {
     fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State) {
-        let title = match state.get("state.title") {
-            Some(Value::String(title)) => title.clone(),
-            Some(_) | None => String::new(),
-        };
-        let project = match state.get("state.project.name") {
-            Some(Value::String(name)) => name.clone(),
-            Some(_) | None => String::new(),
-        };
+        let default = String::from("-");
+        let title = state.get::<String>("state.title").unwrap_or(&default);
+        let project = state
+            .get::<String>("state.project.name")
+            .unwrap_or(&default);
+
         let block = Block::default()
             .borders(Borders::ALL)
             .title(Span::styled(format!(" {title} "), Style::default()));
@@ -52,13 +50,12 @@ where
     B: Backend,
 {
     fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State) {
-        let text = match state.get("state.shortcuts") {
-            Some(Value::Strings(shortcuts)) => shortcuts
-                .iter()
-                .map(|s| Spans::from(Span::styled(s, Style::default())))
-                .collect(),
-            Some(_) | None => vec![],
-        };
+        let default = vec![];
+        let shortcuts = state.get::<Vec<String>>("state.shortcuts").unwrap_or(&default);
+        let text = shortcuts
+            .iter()
+            .map(|s| Spans::from(Span::styled(s, Style::default())))
+            .collect::<Vec<_>>();
         let block = Block::default().borders(Borders::NONE);
         let paragraph = Paragraph::new(text).block(block).wrap(Wrap { trim: true });
 
@@ -132,11 +129,9 @@ where
     }
 
     pub fn draw_active_page(&self, frame: &mut Frame<B>, area: Rect, state: &State) {
-        let index: usize = match state.get("state.view.page.index") {
-            Some(Value::Index(index)) => index.clone(),
-            Some(_) | None => 0,
-        };
-        if let Some(page) = self.pages.get(index) {
+        let default = 0;
+        let index = state.get::<usize>("state.view.page.index").unwrap_or(&default);
+        if let Some(page) = self.pages.get(*index) {
             page.draw(frame, area, state);
         }
     }
