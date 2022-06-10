@@ -22,12 +22,14 @@ where
     B: Backend,
 {
     fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State) {
-        let block = Block::default().borders(Borders::ALL).title(" Issues ");
+        let default = 0;
+        let issues = state.get::<IssueList>("project.issues.list");
+        let selected = state.get::<usize>("project.issues.index").unwrap_or(&default);
 
         let mut list_state = TableState::default();
-        list_state.select(Some(0));
+        list_state.select(Some(*selected));
 
-        let issues = state.get::<IssueList>("project.issues.list");
+        let block = Block::default().borders(Borders::ALL).title(" Issues ");
         if issues.is_some() && !issues.unwrap().is_empty() {
             let items: Vec<Row> = issues
                 .unwrap()
