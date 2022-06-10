@@ -23,9 +23,7 @@ where
     fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State) {
         let default = String::from("-");
         let title = state.get::<String>("app.title").unwrap_or(&default);
-        let project = state
-            .get::<String>("project.name")
-            .unwrap_or(&default);
+        let project = state.get::<String>("project.name").unwrap_or(&default);
 
         let block = Block::default()
             .borders(Borders::ALL)
@@ -51,7 +49,9 @@ where
 {
     fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State) {
         let default = vec![];
-        let shortcuts = state.get::<Vec<String>>("app.shortcuts").unwrap_or(&default);
+        let shortcuts = state
+            .get::<Vec<String>>("app.shortcuts")
+            .unwrap_or(&default);
         let text = shortcuts
             .iter()
             .map(|s| Spans::from(Span::styled(s, Style::default())))
@@ -92,9 +92,10 @@ where
             .map(|_| Constraint::Percentage(100 / self.widgets.len() as u16))
             .collect::<Vec<_>>();
         let chunks = Layout::default().constraints(constraints).split(area);
+        let mut iter = chunks.iter();
 
         for widget in &self.widgets {
-            if let Some(chunk) = chunks.iter().next() {
+            if let Some(chunk) = iter.next() {
                 widget.draw(frame, *chunk, state)
             }
         }
