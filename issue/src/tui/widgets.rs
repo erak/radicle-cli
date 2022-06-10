@@ -1,8 +1,8 @@
 use tui::backend::Backend;
-use tui::layout::{Alignment, Constraint, Rect};
+use tui::layout::{Alignment, Constraint, Layout, Rect};
 use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
-use tui::widgets::{Block, Borders, Cell, Paragraph, Row, Table, TableState};
+use tui::widgets::{Block, Borders, Cell, Paragraph, Row, Table, TableState, Wrap};
 use tui::Frame;
 
 use radicle_common::cobs::issue::{CloseReason, Issue, IssueId, State as IssueState};
@@ -24,7 +24,9 @@ where
     fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State) {
         let default = 0;
         let issues = state.get::<IssueList>("project.issues.list");
-        let selected = state.get::<usize>("project.issues.index").unwrap_or(&default);
+        let selected = state
+            .get::<usize>("project.issues.index")
+            .unwrap_or(&default);
 
         let mut list_state = TableState::default();
         list_state.select(Some(*selected));
@@ -43,11 +45,7 @@ where
                     Constraint::Ratio(16, 32),
                     Constraint::Ratio(6, 32),
                 ])
-                .highlight_style(
-                    Style::default()
-                        .bg(Color::Yellow)
-                        .fg(Color::White),
-                );
+                .highlight_style(Style::default().bg(Color::Yellow).fg(Color::White));
 
             frame.render_stateful_widget(table, area, &mut list_state);
         } else {
@@ -93,5 +91,76 @@ impl BrowserWidget {
             )),
         ];
         Row::new(cells)
+    }
+}
+
+#[derive(Clone)]
+pub struct DetailWidget;
+
+impl<B> Widget<B> for DetailWidget
+where
+    B: Backend,
+{
+    fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State) {
+        let default = 0;
+        let issues = state.get::<IssueList>("project.issues.list");
+        let selected = state
+            .get::<usize>("project.issues.index")
+            .unwrap_or(&default);
+        let issue = issues.unwrap().get(*selected);
+
+        let block = Block::default().borders(Borders::ALL).title(" Details ");
+        if issues.is_some() && issue.is_some() {
+            let issue = issue.unwrap();
+
+            let id = vec![
+                Span::styled("ID: ", Style::default()),
+                Span::styled(format!("{}", issue.0), Style::default().fg(Color::Cyan)),
+            ];
+
+            let title = vec![
+                Span::styled("Title: ", Style::default()),
+                Span::styled(
+                    issue.1.title.clone(),
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
+            ];
+
+            let author = match &issue.1.author {
+                Author::Urn { urn } => format!("{}", urn),
+                Author::Resolved(identity) => identity.name.clone(),
+            };
+            let author = vec![
+                Span::styled("Author: ", Style::default()),
+                Span::styled(
+                    author,
+                    Style::default()
+                        .fg(Color::DarkGray)
+                        .add_modifier(Modifier::ITALIC),
+                ),
+            ];
+
+            let mut comment = issue
+                .1
+                .comment
+                .body
+                .lines()
+                .map(|line| Spans::from(line))
+                .collect::<Vec<_>>();
+
+            let mut content = vec![
+                Spans::from(title),
+                Spans::from(author),
+                Spans::from(id),
+                Spans::from(String::new()),
+            ];
+            content.append(&mut comment);
+
+            let details = Paragraph::new(content)
+                .block(block)
+                .wrap(Wrap { trim: true });
+
+            frame.render_widget(details, area);
+        }
     }
 }

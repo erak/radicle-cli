@@ -14,7 +14,7 @@ mod actions;
 mod widgets;
 
 use actions::{BrowseDownAction, BrowseUpAction};
-use widgets::BrowserWidget;
+use widgets::{BrowserWidget, DetailWidget};
 
 type IssueList = Vec<(IssueId, Issue)>;
 
@@ -39,7 +39,7 @@ pub fn run(project: &Metadata, issues: IssueList) -> Result<()> {
         ]);
 
     let pages = vec![PageWidget {
-        widgets: vec![Rc::new(BrowserWidget)],
+        widgets: vec![Rc::new(BrowserWidget), Rc::new(DetailWidget)],
     }];
     app.execute(pages)?;
 
