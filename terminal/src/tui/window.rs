@@ -22,9 +22,9 @@ where
 {
     fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State) {
         let default = String::from("-");
-        let title = state.get::<String>("state.title").unwrap_or(&default);
+        let title = state.get::<String>("app.title").unwrap_or(&default);
         let project = state
-            .get::<String>("state.project.name")
+            .get::<String>("project.name")
             .unwrap_or(&default);
 
         let block = Block::default()
@@ -51,7 +51,7 @@ where
 {
     fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State) {
         let default = vec![];
-        let shortcuts = state.get::<Vec<String>>("state.shortcuts").unwrap_or(&default);
+        let shortcuts = state.get::<Vec<String>>("app.shortcuts").unwrap_or(&default);
         let text = shortcuts
             .iter()
             .map(|s| Spans::from(Span::styled(s, Style::default())))
@@ -130,7 +130,7 @@ where
 
     pub fn draw_active_page(&self, frame: &mut Frame<B>, area: Rect, state: &State) {
         let default = 0;
-        let index = state.get::<usize>("state.view.page.index").unwrap_or(&default);
+        let index = state.get::<usize>("app.page.index").unwrap_or(&default);
         if let Some(page) = self.pages.get(*index) {
             page.draw(frame, area, state);
         }

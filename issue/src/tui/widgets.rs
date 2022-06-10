@@ -27,7 +27,7 @@ where
         let mut list_state = TableState::default();
         list_state.select(Some(0));
 
-        let issues = state.get::<IssueList>("state.issues.list");
+        let issues = state.get::<IssueList>("project.issues.list");
         if issues.is_some() && !issues.unwrap().is_empty() {
             let items: Vec<Row> = issues
                 .unwrap()

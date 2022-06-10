@@ -17,7 +17,7 @@ pub mod store;
 pub mod window;
 
 use events::{Events, InputEvent, Key};
-use store::State;
+use store::{State, Value};
 use window::{MenuWidget, PageWidget, ShortcutWidget};
 
 pub const TICK_RATE: u64 = 200;
@@ -31,8 +31,7 @@ pub trait Action {
 pub struct QuitAction;
 impl Action for QuitAction {
     fn execute(&mut self, state: &mut State) {
-        state.set("state.running", Box::new(false));
-        state.set("state.view.page.index", Box::new(0_usize));
+        state.set("app.running", Box::new(false));
     }
 }
 
@@ -124,7 +123,7 @@ impl<'a> Application {
                 InputEvent::Tick => self.on_tick(),
             };
 
-            if let Some(running) = self.state.get::<bool>("state.running") {
+            if let Some(running) = self.state.get::<bool>("app.running") {
                 if !running {
                     return Ok(());
                 }
@@ -132,8 +131,11 @@ impl<'a> Application {
         }
     }
 
-    pub fn state(&mut self) -> &mut State {
-        &mut self.state
+    pub fn state(mut self, props: Vec<(&str, Value)>) -> Self {
+        for prop in props {
+            self.state.set(&prop.0, prop.1);
+        }
+        self
     }
 
     pub fn bindings(&mut self) -> &mut Bindings {
@@ -157,7 +159,7 @@ impl<'a> Application {
 
 impl Default for Application {
     fn default() -> Self {
-        let mut application = Application {
+        let application = Application {
             bindings: Bindings {
                 entries: HashMap::new(),
             },
@@ -166,6 +168,10 @@ impl Default for Application {
             },
             state: Default::default(),
         };
+        let mut application = application.state(vec![
+            ("app.running", Box::new(true)),
+            ("app.shortcuts", Box::new(vec![String::from("(Q)uit")])),
+        ]);
         application.actions().add(ACTION_QUIT, Box::new(QuitAction));
         application.bindings().add(Key::Char('q'), ACTION_QUIT);
         application
