@@ -145,8 +145,11 @@ impl<'a> Application {
         self
     }
 
-    pub fn actions(&mut self) -> &mut Actions {
-        &mut self.actions
+    pub fn actions(mut self, actions: Vec<(&str, BoxedAction)>) -> Self {
+        for action in actions {
+            self.actions.add(action.0, action.1);
+        }
+        self
     }
 
     fn on_key(&mut self, key: &Key) {
@@ -171,13 +174,12 @@ impl Default for Application {
             },
             state: Default::default(),
         };
-        let mut application = application
+        application
             .state(vec![
                 ("app.running", Box::new(true)),
                 ("app.shortcuts", Box::new(vec![String::from("(Q)uit")])),
             ])
-            .bindings(vec![(Key::Char('q'), ACTION_QUIT)]);
-        application.actions().add(ACTION_QUIT, Box::new(QuitAction));
-        application
+            .bindings(vec![(Key::Char('q'), ACTION_QUIT)])
+            .actions(vec![(ACTION_QUIT, Box::new(QuitAction))])
     }
 }
