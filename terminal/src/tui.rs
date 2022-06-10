@@ -138,8 +138,11 @@ impl<'a> Application {
         self
     }
 
-    pub fn bindings(&mut self) -> &mut Bindings {
-        &mut self.bindings
+    pub fn bindings(mut self, bindings: Vec<(Key, &str)>) -> Self {
+        for binding in bindings {
+            self.bindings.add(binding.0, binding.1);
+        }
+        self
     }
 
     pub fn actions(&mut self) -> &mut Actions {
@@ -168,12 +171,13 @@ impl Default for Application {
             },
             state: Default::default(),
         };
-        let mut application = application.state(vec![
-            ("app.running", Box::new(true)),
-            ("app.shortcuts", Box::new(vec![String::from("(Q)uit")])),
-        ]);
+        let mut application = application
+            .state(vec![
+                ("app.running", Box::new(true)),
+                ("app.shortcuts", Box::new(vec![String::from("(Q)uit")])),
+            ])
+            .bindings(vec![(Key::Char('q'), ACTION_QUIT)]);
         application.actions().add(ACTION_QUIT, Box::new(QuitAction));
-        application.bindings().add(Key::Char('q'), ACTION_QUIT);
         application
     }
 }
