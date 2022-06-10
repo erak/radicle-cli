@@ -177,6 +177,7 @@ impl Default for Application {
         application
             .state(vec![
                 ("app.running", Box::new(true)),
+                ("app.page.index", Box::new(0_usize)),
                 ("app.shortcuts", Box::new(vec![String::from("(Q)uit")])),
             ])
             .bindings(vec![(Key::Char('q'), ACTION_QUIT)])
