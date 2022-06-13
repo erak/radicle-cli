@@ -14,10 +14,12 @@ use tui::Terminal;
 
 pub mod events;
 pub mod store;
+pub mod theme;
 pub mod window;
 
 use events::{Events, InputEvent, Key};
 use store::{State, Value};
+use theme::Theme;
 use window::{MenuWidget, PageWidget, ShortcutWidget};
 
 pub const TICK_RATE: u64 = 200;
@@ -79,6 +81,7 @@ impl<'a> Application {
     pub fn execute(
         &mut self,
         pages: Vec<PageWidget<CrosstermBackend<Stdout>>>,
+        theme: &Theme,
     ) -> anyhow::Result<()> {
         enable_raw_mode()?;
         let mut stdout = stdout();
@@ -86,7 +89,7 @@ impl<'a> Application {
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
 
-        let res = self.run(&mut terminal, pages);
+        let res = self.run(&mut terminal, pages, theme);
 
         disable_raw_mode()?;
         execute!(
@@ -107,6 +110,7 @@ impl<'a> Application {
         &mut self,
         terminal: &mut Terminal<B>,
         pages: Vec<PageWidget<B>>,
+        theme: &Theme,
     ) -> anyhow::Result<()> {
         let window = window::ApplicationWindow {
             menu: Rc::new(MenuWidget),
@@ -116,7 +120,7 @@ impl<'a> Application {
         let events = Events::new(Duration::from_millis(TICK_RATE));
 
         loop {
-            terminal.draw(|f| window.draw(f, &self.state))?;
+            terminal.draw(|f| window.draw(f, theme, &self.state))?;
 
             match events.next()? {
                 InputEvent::Input(key) => self.on_key(&key),

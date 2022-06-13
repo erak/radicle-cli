@@ -2,15 +2,16 @@ use std::rc::Rc;
 
 use tui::backend::Backend;
 use tui::layout::{Constraint, Layout, Rect};
-use tui::style::{Color, Modifier, Style};
+use tui::style::{Modifier, Style};
 use tui::text::{Span, Spans};
 use tui::widgets::{Block, Borders, Paragraph, Wrap};
 use tui::Frame;
 
 use super::store::State;
+use super::theme::Theme;
 
 pub trait Widget<B: Backend> {
-    fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State);
+    fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State);
 }
 
 #[derive(Copy, Clone)]
@@ -20,20 +21,22 @@ impl<B> Widget<B> for MenuWidget
 where
     B: Backend,
 {
-    fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State) {
+    fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
         let default = String::from("-");
-        let title = state.get::<String>("app.title").unwrap_or(&default);
+        let _ = state.get::<String>("app.title").unwrap_or(&default);
         let project = state.get::<String>("project.name").unwrap_or(&default);
 
         let block = Block::default()
             .borders(Borders::ALL)
-            .title(Span::styled(format!(" {title} "), Style::default()));
-        let info = vec![Spans::from(Span::styled(
-            format!(" {project}"),
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
-        ))];
+            .border_style(theme.border_style)
+            .border_type(theme.border_type);
+
+        let info = vec![
+            Spans::from(Span::styled(
+                format!("🌱 {project}"),
+                Style::default().add_modifier(Modifier::BOLD),
+            )),
+        ];
         let menu = Paragraph::new(info).block(block).wrap(Wrap { trim: false });
 
         frame.render_widget(menu, area);
@@ -47,7 +50,7 @@ impl<B> Widget<B> for ShortcutWidget
 where
     B: Backend,
 {
-    fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State) {
+    fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
         let default = vec![];
         let shortcuts = state
             .get::<Vec<String>>("app.shortcuts")
@@ -56,7 +59,10 @@ where
             .iter()
             .map(|s| Spans::from(Span::styled(s, Style::default())))
             .collect::<Vec<_>>();
-        let block = Block::default().borders(Borders::NONE);
+        let block = Block::default()
+            .borders(Borders::NONE)
+            .border_style(theme.border_style)
+            .border_type(theme.border_type);
         let paragraph = Paragraph::new(text).block(block).wrap(Wrap { trim: true });
 
         frame.render_widget(paragraph, area);
@@ -70,7 +76,7 @@ impl<B> Widget<B> for EmptyWidget
 where
     B: Backend,
 {
-    fn draw(&self, frame: &mut Frame<B>, area: Rect, _state: &State) {
+    fn draw(&self, frame: &mut Frame<B>, _theme: &Theme, area: Rect, _state: &State) {
         let block = Block::default().borders(Borders::NONE);
         frame.render_widget(block, area);
     }
@@ -85,7 +91,7 @@ impl<B> Widget<B> for PageWidget<B>
 where
     B: Backend,
 {
-    fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State) {
+    fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
         let constraints = self
             .widgets
             .iter()
@@ -96,7 +102,7 @@ where
 
         for widget in &self.widgets {
             if let Some(chunk) = iter.next() {
-                widget.draw(frame, *chunk, state)
+                widget.draw(frame, theme, *chunk, state)
             }
         }
     }
@@ -112,7 +118,7 @@ impl<B> ApplicationWindow<B>
 where
     B: Backend,
 {
-    pub fn draw(&self, frame: &mut Frame<B>, state: &State) {
+    pub fn draw(&self, frame: &mut Frame<B>, theme: &Theme, state: &State) {
         let chunks = Layout::default()
             .constraints(
                 [
@@ -124,16 +130,16 @@ where
             )
             .split(frame.size());
 
-        self.menu.draw(frame, chunks[0], state);
-        self.draw_active_page(frame, chunks[1], state);
-        self.shortcuts.draw(frame, chunks[2], state);
+        self.menu.draw(frame, theme, chunks[0], state);
+        self.draw_active_page(frame, theme, chunks[1], state);
+        self.shortcuts.draw(frame, theme, chunks[2], state);
     }
 
-    pub fn draw_active_page(&self, frame: &mut Frame<B>, area: Rect, state: &State) {
+    pub fn draw_active_page(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
         let default = 0;
         let index = state.get::<usize>("app.page.index").unwrap_or(&default);
         if let Some(page) = self.pages.get(*index) {
-            page.draw(frame, area, state);
+            page.draw(frame, theme, area, state);
         }
     }
 }
