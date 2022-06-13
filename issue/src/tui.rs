@@ -6,7 +6,11 @@ use radicle_common::cobs::issue::{Issue, IssueId};
 use radicle_common::project::Metadata;
 use radicle_terminal as term;
 
+use tui::style::{Color, Modifier, Style};
+use tui::widgets::BorderType;
+
 use term::tui::events::Key;
+use term::tui::theme::Theme;
 use term::tui::window::PageWidget;
 use term::tui::Application;
 
@@ -24,10 +28,10 @@ pub const ACTION_BROWSE_DOWN: &str = "action.browse.down";
 pub fn run(project: &Metadata, issues: IssueList) -> Result<()> {
     let mut app = Application::new()
         .state(vec![
-            ("app.title", Box::new("🌱".to_owned())),
+            ("app.title", Box::new("Issues".to_owned())),
             ("project.name", Box::new(project.name.clone())),
             ("project.issues.list", Box::new(issues)),
-            ("project.issues.index", Box::new(0_usize))
+            ("project.issues.index", Box::new(0_usize)),
         ])
         .bindings(vec![
             (Key::Up, ACTION_BROWSE_UP),
@@ -41,7 +45,9 @@ pub fn run(project: &Metadata, issues: IssueList) -> Result<()> {
     let pages = vec![PageWidget {
         widgets: vec![Rc::new(BrowserWidget), Rc::new(DetailWidget)],
     }];
-    app.execute(pages)?;
+
+    let theme = Theme::modern();
+    app.execute(pages, &theme)?;
 
     Ok(())
 }

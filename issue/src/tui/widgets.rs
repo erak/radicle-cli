@@ -1,5 +1,5 @@
 use tui::backend::Backend;
-use tui::layout::{Alignment, Constraint, Layout, Rect};
+use tui::layout::{Alignment, Constraint, Rect};
 use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
 use tui::widgets::{Block, Borders, Cell, Paragraph, Row, Table, TableState, Wrap};
@@ -10,6 +10,7 @@ use radicle_common::cobs::shared::Author;
 use radicle_terminal as term;
 
 use term::tui::store::State;
+use term::tui::theme::Theme;
 use term::tui::window::Widget;
 
 type IssueList = Vec<(IssueId, Issue)>;
@@ -21,7 +22,7 @@ impl<B> Widget<B> for BrowserWidget
 where
     B: Backend,
 {
-    fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State) {
+    fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
         let default = 0;
         let issues = state.get::<IssueList>("project.issues.list");
         let selected = state
@@ -31,7 +32,11 @@ where
         let mut list_state = TableState::default();
         list_state.select(Some(*selected));
 
-        let block = Block::default().borders(Borders::ALL).title(" Issues ");
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(theme.border_style)
+            .border_type(theme.border_type);
+
         if issues.is_some() && !issues.unwrap().is_empty() {
             let items: Vec<Row> = issues
                 .unwrap()
@@ -45,7 +50,8 @@ where
                     Constraint::Ratio(16, 32),
                     Constraint::Ratio(6, 32),
                 ])
-                .highlight_style(Style::default().bg(Color::Yellow).fg(Color::White));
+                .highlight_style(theme.highlight_style)
+                .highlight_symbol(&theme.highlight_symbol);
 
             frame.render_stateful_widget(table, area, &mut list_state);
         } else {
@@ -79,10 +85,7 @@ impl BrowserWidget {
 
         let cells = vec![
             Cell::from(Span::styled(state, Style::default())),
-            Cell::from(Span::styled(
-                issue.title.clone(),
-                Style::default().add_modifier(Modifier::BOLD),
-            )),
+            Cell::from(Span::styled(issue.title.clone(), Style::default())),
             Cell::from(Span::styled(
                 author,
                 Style::default()
@@ -101,7 +104,7 @@ impl<B> Widget<B> for DetailWidget
 where
     B: Backend,
 {
-    fn draw(&self, frame: &mut Frame<B>, area: Rect, state: &State) {
+    fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
         let default = 0;
         let issues = state.get::<IssueList>("project.issues.list");
         let selected = state
@@ -109,7 +112,11 @@ where
             .unwrap_or(&default);
         let issue = issues.unwrap().get(*selected);
 
-        let block = Block::default().borders(Borders::ALL).title(" Details ");
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(theme.border_style)
+            .border_type(theme.border_type);
+
         if issues.is_some() && issue.is_some() {
             let issue = issue.unwrap();
 
