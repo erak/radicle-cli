@@ -15,12 +15,13 @@ use tui::Terminal;
 pub mod events;
 pub mod store;
 pub mod theme;
+pub mod template;
 pub mod window;
 
 use events::{Events, InputEvent, Key};
 use store::{State, Value};
 use theme::Theme;
-use window::{MenuWidget, PageWidget, ShortcutWidget};
+use window::{TitleWidget, PageWidget, ShortcutWidget};
 
 pub const TICK_RATE: u64 = 200;
 pub const ACTION_QUIT: &str = "action.quit";
@@ -113,7 +114,7 @@ impl<'a> Application {
         theme: &Theme,
     ) -> anyhow::Result<()> {
         let window = window::ApplicationWindow {
-            menu: Rc::new(MenuWidget),
+            title: Rc::new(TitleWidget),
             pages: pages,
             shortcuts: Rc::new(ShortcutWidget),
         };
@@ -182,7 +183,7 @@ impl Default for Application {
             .state(vec![
                 ("app.running", Box::new(true)),
                 ("app.page.index", Box::new(0_usize)),
-                ("app.shortcuts", Box::new(vec![String::from("(Q)uit")])),
+                ("app.shortcuts", Box::new(vec![String::from("q quit"), String::from("? help")])),
             ])
             .bindings(vec![(Key::Char('q'), ACTION_QUIT)])
             .actions(vec![(ACTION_QUIT, Box::new(QuitAction))])

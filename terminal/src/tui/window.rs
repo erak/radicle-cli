@@ -1,13 +1,14 @@
 use std::rc::Rc;
 
 use tui::backend::Backend;
-use tui::layout::{Constraint, Layout, Rect};
-use tui::style::{Modifier, Style};
+use tui::layout::{Constraint, Direction, Layout, Rect};
 use tui::text::{Span, Spans};
-use tui::widgets::{Block, Borders, Paragraph, Wrap};
+use tui::widgets::{Block, Borders, Paragraph};
 use tui::Frame;
 
 use super::store::State;
+use super::template;
+use super::template::Padding;
 use super::theme::Theme;
 
 pub trait Widget<B: Backend> {
@@ -15,9 +16,9 @@ pub trait Widget<B: Backend> {
 }
 
 #[derive(Copy, Clone)]
-pub struct MenuWidget;
+pub struct TitleWidget;
 
-impl<B> Widget<B> for MenuWidget
+impl<B> Widget<B> for TitleWidget
 where
     B: Backend,
 {
@@ -26,20 +27,11 @@ where
         let _ = state.get::<String>("app.title").unwrap_or(&default);
         let project = state.get::<String>("project.name").unwrap_or(&default);
 
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(theme.border_style)
-            .border_type(theme.border_type);
+        let (block, inner) = template::block(theme, area, Padding { top: 1, left: 4 }, true);
+        frame.render_widget(block, area);
 
-        let info = vec![
-            Spans::from(Span::styled(
-                format!("🌱 {project}"),
-                Style::default().add_modifier(Modifier::BOLD),
-            )),
-        ];
-        let menu = Paragraph::new(info).block(block).wrap(Wrap { trim: false });
-
-        frame.render_widget(menu, area);
+        let project = template::paragraph(project, theme.highlight_invert);
+        frame.render_widget(project, inner);
     }
 }
 
@@ -55,17 +47,29 @@ where
         let shortcuts = state
             .get::<Vec<String>>("app.shortcuts")
             .unwrap_or(&default);
-        let text = shortcuts
-            .iter()
-            .map(|s| Spans::from(Span::styled(s, Style::default())))
-            .collect::<Vec<_>>();
-        let block = Block::default()
-            .borders(Borders::NONE)
-            .border_style(theme.border_style)
-            .border_type(theme.border_type);
-        let paragraph = Paragraph::new(text).block(block).wrap(Wrap { trim: true });
 
-        frame.render_widget(paragraph, area);
+        let constraints = shortcuts
+            .iter()
+            .map(|s| Constraint::Length(s.len() as u16 + 2))
+            .collect::<Vec<_>>();
+        let shortcuts = shortcuts
+            .iter()
+            .map(|s| Span::styled(s, theme.ternary))
+            .collect::<Vec<_>>();
+
+        let (_, inner) = template::block(theme, area, Padding { top: 1, left: 2 }, false);
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(constraints)
+            .split(inner);
+        let mut iter = chunks.iter();
+
+        for shortcut in shortcuts {
+            if let Some(chunk) = iter.next() {
+                let paragraph = Paragraph::new(Spans::from(shortcut));
+                frame.render_widget(paragraph, *chunk);
+            }
+        }
     }
 }
 
@@ -85,6 +89,7 @@ where
 #[derive(Clone)]
 pub struct PageWidget<B: Backend> {
     pub widgets: Vec<Rc<dyn Widget<B>>>,
+    pub context: Rc<dyn Widget<B>>,
 }
 
 impl<B> Widget<B> for PageWidget<B>
@@ -92,11 +97,13 @@ where
     B: Backend,
 {
     fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
-        let constraints = self
+        let mut constraints = self
             .widgets
             .iter()
-            .map(|_| Constraint::Percentage(100 / self.widgets.len() as u16))
+            .map(|_| Constraint::Length(area.height / 2))
             .collect::<Vec<_>>();
+        constraints.push(Constraint::Max(1));
+
         let chunks = Layout::default().constraints(constraints).split(area);
         let mut iter = chunks.iter();
 
@@ -105,11 +112,14 @@ where
                 widget.draw(frame, theme, *chunk, state)
             }
         }
+        if let Some(chunk) = iter.next() {
+            self.context.draw(frame, theme, *chunk, state)
+        }
     }
 }
 
 pub struct ApplicationWindow<B: Backend> {
-    pub menu: Rc<dyn Widget<B>>,
+    pub title: Rc<dyn Widget<B>>,
     pub pages: Vec<PageWidget<B>>,
     pub shortcuts: Rc<dyn Widget<B>>,
 }
@@ -119,18 +129,21 @@ where
     B: Backend,
 {
     pub fn draw(&self, frame: &mut Frame<B>, theme: &Theme, state: &State) {
+        let title_height = 3;
+        let shortcut_height = 3;
+        let page_height = frame.size().height - title_height - shortcut_height;
         let chunks = Layout::default()
             .constraints(
                 [
-                    Constraint::Length(3),
-                    Constraint::Min(0),
-                    Constraint::Length(2),
+                    Constraint::Length(title_height),
+                    Constraint::Length(page_height),
+                    Constraint::Min(shortcut_height),
                 ]
                 .as_ref(),
             )
             .split(frame.size());
 
-        self.menu.draw(frame, theme, chunks[0], state);
+        self.title.draw(frame, theme, chunks[0], state);
         self.draw_active_page(frame, theme, chunks[1], state);
         self.shortcuts.draw(frame, theme, chunks[2], state);
     }
