@@ -1,8 +1,8 @@
 use tui::backend::Backend;
-use tui::layout::{Alignment, Constraint, Rect};
+use tui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
-use tui::widgets::{Block, Borders, Cell, Paragraph, Row, Table, TableState, Wrap};
+use tui::widgets::{Borders, ListItem, Paragraph, Wrap};
 use tui::Frame;
 
 use radicle_common::cobs::issue::{CloseReason, Issue, IssueId, State as IssueState};
@@ -10,6 +10,8 @@ use radicle_common::cobs::shared::Author;
 use radicle_terminal as term;
 
 use term::tui::store::State;
+use term::tui::template;
+use term::tui::template::Padding;
 use term::tui::theme::Theme;
 use term::tui::window::Widget;
 
@@ -29,71 +31,44 @@ where
             .get::<usize>("project.issues.index")
             .unwrap_or(&default);
 
-        let mut list_state = TableState::default();
-        list_state.select(Some(*selected));
-
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(theme.border_style)
-            .border_type(theme.border_type);
+        let (block, inner) = template::block(theme, area, Padding { top: 1, left: 2 }, true);
+        frame.render_widget(block, area);
 
         if issues.is_some() && !issues.unwrap().is_empty() {
-            let items: Vec<Row> = issues
+            let items: Vec<ListItem> = issues
                 .unwrap()
                 .iter()
-                .map(|issue| self.row(&issue.0, &issue.1))
+                .map(|issue| self.items(&issue.0, &issue.1, &theme))
                 .collect();
-            let table = Table::new(items)
-                .block(block)
-                .widths(&[
-                    Constraint::Ratio(2, 32),
-                    Constraint::Ratio(16, 32),
-                    Constraint::Ratio(6, 32),
-                ])
-                .highlight_style(theme.highlight_style)
-                .highlight_symbol(&theme.highlight_symbol);
+            let (list, mut state) = template::list(items, *selected, &theme);
 
-            frame.render_stateful_widget(table, area, &mut list_state);
+            frame.render_stateful_widget(list, inner, &mut state);
         } else {
-            let text = vec![Spans::from(Span::styled(
-                "No issues found",
-                Style::default(),
-            ))];
-            let paragraph = Paragraph::new(text)
-                .block(block)
-                .alignment(Alignment::Center);
-            frame.render_widget(paragraph, area);
+            let message = String::from("No issues found");
+            let message =
+                template::paragraph(&message, Style::default()).alignment(Alignment::Center);
+            frame.render_widget(message, inner);
         }
     }
 }
 
 impl BrowserWidget {
-    fn row(&self, _id: &IssueId, issue: &Issue) -> Row {
-        let state = match issue.state {
-            IssueState::Open => String::from("[Open]"),
-            IssueState::Closed {
-                reason: CloseReason::Solved,
-            } => String::from("[Solved]"),
-            IssueState::Closed {
-                reason: CloseReason::Other,
-            } => String::from("[Closed]"),
-        };
+    fn items(&self, _id: &IssueId, issue: &Issue, theme: &Theme) -> ListItem {
         let author = match &issue.author {
             Author::Urn { urn } => format!("{}", urn),
             Author::Resolved(identity) => identity.name.clone(),
         };
 
-        let cells = vec![
-            Cell::from(Span::styled(state, Style::default())),
-            Cell::from(Span::styled(issue.title.clone(), Style::default())),
-            Cell::from(Span::styled(
-                author,
+        let lines = vec![
+            Spans::from(Span::styled(issue.title.clone(), theme.primary)),
+            Spans::from(Span::styled(
+                format!("{}", author),
                 Style::default()
-                    .fg(Color::DarkGray)
-                    .add_modifier(Modifier::ITALIC),
+                    .add_modifier(Modifier::ITALIC)
+                    .fg(Color::DarkGray),
             )),
         ];
-        Row::new(cells)
+        ListItem::new(lines)
     }
 }
 
@@ -112,42 +87,12 @@ where
             .unwrap_or(&default);
         let issue = issues.unwrap().get(*selected);
 
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(theme.border_style)
-            .border_type(theme.border_type);
+        let (block, inner) = template::block(theme, area, Padding { top: 1, left: 2 }, true);
+        frame.render_widget(block, area);
 
         if issues.is_some() && issue.is_some() {
             let issue = issue.unwrap();
-
-            let id = vec![
-                Span::styled("ID: ", Style::default()),
-                Span::styled(format!("{}", issue.0), Style::default().fg(Color::Cyan)),
-            ];
-
-            let title = vec![
-                Span::styled("Title: ", Style::default()),
-                Span::styled(
-                    issue.1.title.clone(),
-                    Style::default().add_modifier(Modifier::BOLD),
-                ),
-            ];
-
-            let author = match &issue.1.author {
-                Author::Urn { urn } => format!("{}", urn),
-                Author::Resolved(identity) => identity.name.clone(),
-            };
-            let author = vec![
-                Span::styled("Author: ", Style::default()),
-                Span::styled(
-                    author,
-                    Style::default()
-                        .fg(Color::DarkGray)
-                        .add_modifier(Modifier::ITALIC),
-                ),
-            ];
-
-            let mut comment = issue
+            let comment = issue
                 .1
                 .comment
                 .body
@@ -155,19 +100,86 @@ where
                 .map(|line| Spans::from(line))
                 .collect::<Vec<_>>();
 
-            let mut content = vec![
-                Spans::from(title),
-                Spans::from(author),
-                Spans::from(id),
-                Spans::from(String::new()),
-            ];
-            content.append(&mut comment);
+            let details = Paragraph::new(comment).wrap(Wrap { trim: true });
+            frame.render_widget(details, inner);
+        }
+    }
+}
 
-            let details = Paragraph::new(content)
-                .block(block)
-                .wrap(Wrap { trim: true });
+#[derive(Clone)]
+pub struct ContextWidget;
 
-            frame.render_widget(details, area);
+impl<B> Widget<B> for ContextWidget
+where
+    B: Backend,
+{
+    fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
+        let default = 0;
+        let default_project = String::from("-");
+        let project = state
+            .get::<String>("project.name")
+            .unwrap_or(&default_project);
+        let issues = state.get::<IssueList>("project.issues.list");
+        let selected = state
+            .get::<usize>("project.issues.index")
+            .unwrap_or(&default);
+        let issue = issues.unwrap().get(*selected);
+
+        let (block, _) = template::block(theme, area, Padding { top: 0, left: 0 }, false);
+        frame.render_widget(block, area);
+
+        if issues.is_some() && issue.is_some() {
+            let issue = issue.unwrap();
+            let author = match &issue.1.author {
+                Author::Urn { urn } => format!("{}", urn),
+                Author::Resolved(identity) => identity.name.clone(),
+            };
+            let state = match issue.1.state {
+                IssueState::Open => Span::styled(String::from(" ● "), theme.open),
+                IssueState::Closed {
+                    reason: CloseReason::Solved,
+                } => Span::styled(String::from(" ✔ "), theme.solved),
+                IssueState::Closed {
+                    reason: CloseReason::Other,
+                } => Span::styled(String::from(" ✖ "), theme.closed),
+            };
+
+            let length_project = project.len() as u16 + 2;
+            let length_state = 3;
+            let length_comments = issue.1.comments().len().to_string().len() as u16 + 2;
+            let length_author = author.len() as u16 + 2;
+
+            let length_others = length_project + length_state + length_comments + length_author;
+            let length_title = area.width.checked_sub(length_others).unwrap_or(0);
+
+            let chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints(
+                    [
+                        Constraint::Length(length_project),
+                        Constraint::Length(length_state),
+                        Constraint::Length(length_title),
+                        Constraint::Length(length_author),
+                        Constraint::Length(length_comments),
+                    ]
+                    .as_ref(),
+                )
+                .split(area);
+
+            let project = template::paragraph_styled(project, theme.highlight_invert);
+            frame.render_widget(project, chunks[0]);
+            let state = Paragraph::new(vec![Spans::from(state)]).style(theme.bg_bright_ternary);
+            frame.render_widget(state, chunks[1]);
+
+            let title = template::paragraph_styled(&issue.1.title, theme.bg_bright_ternary);
+            frame.render_widget(title, chunks[2]);
+
+            let author = template::paragraph_styled(&author, theme.bg_bright_primary);
+            frame.render_widget(author, chunks[3]);
+
+            let count = &issue.1.comments().len().to_string();
+            let comments = template::paragraph(count, theme.bg_dark_secondary);
+            frame.render_widget(comments, chunks[4]);
         }
     }
 }

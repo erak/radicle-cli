@@ -6,9 +6,6 @@ use radicle_common::cobs::issue::{Issue, IssueId};
 use radicle_common::project::Metadata;
 use radicle_terminal as term;
 
-use tui::style::{Color, Modifier, Style};
-use tui::widgets::BorderType;
-
 use term::tui::events::Key;
 use term::tui::theme::Theme;
 use term::tui::window::PageWidget;
@@ -18,7 +15,7 @@ mod actions;
 mod widgets;
 
 use actions::{BrowseDownAction, BrowseUpAction};
-use widgets::{BrowserWidget, DetailWidget};
+use widgets::{BrowserWidget, DetailWidget, ContextWidget};
 
 type IssueList = Vec<(IssueId, Issue)>;
 
@@ -44,9 +41,10 @@ pub fn run(project: &Metadata, issues: IssueList) -> Result<()> {
 
     let pages = vec![PageWidget {
         widgets: vec![Rc::new(BrowserWidget), Rc::new(DetailWidget)],
+        context: Rc::new(ContextWidget),
     }];
 
-    let theme = Theme::modern();
+    let theme = Theme::default_dark();
     app.execute(pages, &theme)?;
 
     Ok(())
