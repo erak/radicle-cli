@@ -1,17 +1,18 @@
 use tui::backend::Backend;
-use tui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use tui::layout::{Alignment, Direction, Rect};
 use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
-use tui::widgets::{Borders, ListItem, Paragraph, Wrap};
+use tui::widgets::{ListItem, Paragraph, Wrap};
 use tui::Frame;
 
 use radicle_common::cobs::issue::{CloseReason, Issue, IssueId, State as IssueState};
 use radicle_common::cobs::shared::Author;
 use radicle_terminal as term;
 
+use term::tui::layout;
+use term::tui::layout::Padding;
 use term::tui::store::State;
 use term::tui::template;
-use term::tui::template::Padding;
 use term::tui::theme::Theme;
 use term::tui::window::Widget;
 
@@ -144,42 +145,33 @@ where
                 } => Span::styled(String::from(" ✖ "), theme.closed),
             };
 
-            let length_project = project.len() as u16 + 2;
-            let length_state = 3;
-            let length_comments = issue.1.comments().len().to_string().len() as u16 + 2;
-            let length_author = author.len() as u16 + 2;
+            let project_w = project.len() as u16 + 2;
+            let state_w = 3;
+            let author_w = author.len() as u16 + 2;
+            let comments_w = issue.1.comments().len().to_string().len() as u16 + 2;
+            let title_w = area
+                .width
+                .checked_sub(project_w + state_w + comments_w + author_w)
+                .unwrap_or(0);
 
-            let length_others = length_project + length_state + length_comments + length_author;
-            let length_title = area.width.checked_sub(length_others).unwrap_or(0);
-
-            let chunks = Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints(
-                    [
-                        Constraint::Length(length_project),
-                        Constraint::Length(length_state),
-                        Constraint::Length(length_title),
-                        Constraint::Length(length_author),
-                        Constraint::Length(length_comments),
-                    ]
-                    .as_ref(),
-                )
-                .split(area);
+            let widths = vec![project_w, state_w, title_w, author_w, comments_w];
+            let areas = layout::split_area(area, widths, Direction::Horizontal);
 
             let project = template::paragraph_styled(project, theme.highlight_invert);
-            frame.render_widget(project, chunks[0]);
+            frame.render_widget(project, areas[0]);
+
             let state = Paragraph::new(vec![Spans::from(state)]).style(theme.bg_bright_ternary);
-            frame.render_widget(state, chunks[1]);
+            frame.render_widget(state, areas[1]);
 
             let title = template::paragraph_styled(&issue.1.title, theme.bg_bright_ternary);
-            frame.render_widget(title, chunks[2]);
+            frame.render_widget(title, areas[2]);
 
             let author = template::paragraph_styled(&author, theme.bg_bright_primary);
-            frame.render_widget(author, chunks[3]);
+            frame.render_widget(author, areas[3]);
 
             let count = &issue.1.comments().len().to_string();
             let comments = template::paragraph(count, theme.bg_dark_secondary);
-            frame.render_widget(comments, chunks[4]);
+            frame.render_widget(comments, areas[4]);
         }
     }
 }

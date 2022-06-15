@@ -8,7 +8,7 @@ use radicle_terminal as term;
 
 use term::tui::events::Key;
 use term::tui::theme::Theme;
-use term::tui::window::PageWidget;
+use term::tui::window::{PageWidget, TitleWidget};
 use term::tui::Application;
 
 mod actions;
@@ -40,6 +40,7 @@ pub fn run(project: &Metadata, issues: IssueList) -> Result<()> {
         ]);
 
     let pages = vec![PageWidget {
+        title: Rc::new(TitleWidget),
         widgets: vec![Rc::new(BrowserWidget), Rc::new(DetailWidget)],
         context: Rc::new(ContextWidget),
     }];
