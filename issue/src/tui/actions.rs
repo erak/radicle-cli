@@ -60,31 +60,21 @@ impl Action for UpAction {
             if let Ok(page) = Page::try_from(*page) {
                 match page {
                     Page::Overview => {
-                        if let Some(issues) = state.get::<IssueList>("project.issue.list") {
-                            if let Some(active) = state.get::<usize>("project.issue.active") {
-                                let active = match *active == 0 {
-                                    true => issues.len() - 1,
-                                    false => active - 1,
-                                };
-                                state.set("project.issue.active", Box::new(active));
-                            }
+                        if let Some(active) = state.get::<usize>("project.issue.active") {
+                            let active = match *active == 0 {
+                                true => 0,
+                                false => active - 1,
+                            };
+                            state.set("project.issue.active", Box::new(active));
                         }
                     },
                     Page::Edit => {
-                        if let Some(issues) = state.get::<IssueList>("project.issue.list") {
-                            if let Some(active) = state.get::<usize>("project.issue.active") {
-                                if let Some((_, issue)) = issues.get(*active) {
-                                    let len = issue.comments().len() + 1;
-                                    if let Some(active) = state.get::<usize>("project.issue.comment.active") {
-                                        let active = match *active == 0 {
-                                            true => len - 1,
-                                            false => active - 1,
-                                        };
-                                        state.set("project.issue.comment.active", Box::new(active));
-                                    }
-                                    
-                                }
-                            }
+                        if let Some(active) = state.get::<usize>("project.issue.comment.active") {
+                            let active = match *active == 0 {
+                                true => 0,
+                                false => active - 1,
+                            };
+                            state.set("project.issue.comment.active", Box::new(active));
                         }
                     }
                 }
@@ -103,7 +93,7 @@ impl Action for DownAction {
                         if let Some(issues) = state.get::<IssueList>("project.issue.list") {
                             if let Some(active) = state.get::<usize>("project.issue.active") {
                                 let active = match *active >= issues.len() - 1 {
-                                    true => 0,
+                                    true => issues.len() - 1,
                                     false => active + 1,
                                 };
                                 state.set("project.issue.active", Box::new(active));
@@ -117,7 +107,7 @@ impl Action for DownAction {
                                     let len = issue.comments().len() + 1;
                                     if let Some(active) = state.get::<usize>("project.issue.comment.active") {
                                         let active = match *active >= len - 1 {
-                                            true => 0,
+                                            true => len - 1,
                                             false => active + 1,
                                         };
                                         state.set("project.issue.comment.active", Box::new(active));
