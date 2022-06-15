@@ -79,6 +79,10 @@ where
             frame.render_widget(message, inner);
         }
     }
+
+    fn height(&self, area: Rect) -> u16 {
+        area.height
+    }
 }
 
 #[derive(Clone)]
@@ -196,6 +200,10 @@ where
             }
         }
     }
+
+    fn height(&self, area: Rect) -> u16 {
+        area.height
+    }
 }
 
 #[derive(Clone)]
@@ -259,5 +267,9 @@ where
                 frame.render_widget(comments, areas[4]);
             }
         }
+    }
+
+    fn height(&self, _area: Rect) -> u16 {
+        1_u16
     }
 }

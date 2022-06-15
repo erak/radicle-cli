@@ -14,6 +14,7 @@ use super::theme::Theme;
 
 pub trait Widget<B: Backend> {
     fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State);
+    fn height(&self, area: Rect) -> u16; 
 }
 
 #[derive(Copy, Clone)]
@@ -34,6 +35,10 @@ where
             let project = template::paragraph(project, theme.highlight_invert);
             frame.render_widget(project, inner);
         }
+    }
+
+    fn height(&self, _area: Rect) -> u16 {
+        3_u16
     }
 }
 
@@ -70,6 +75,10 @@ where
             }
         }
     }
+
+    fn height(&self, _area: Rect) -> u16 {
+        3_u16
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -82,6 +91,10 @@ where
     fn draw(&self, frame: &mut Frame<B>, _theme: &Theme, area: Rect, _state: &State) {
         let block = Block::default().borders(Borders::NONE);
         frame.render_widget(block, area);
+    }
+
+    fn height(&self, _area: Rect) -> u16 {
+        0_u16
     }
 }
 
@@ -97,8 +110,8 @@ where
     B: Backend,
 {
     fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
-        let title_h = 3;
-        let context_h = 1;
+        let title_h = self.title.height(area);
+        let context_h = self.context.height(area);
         let area_h = area.height.checked_sub(title_h + context_h).unwrap_or(0);
         let widget_h = area_h.checked_div(self.widgets.len() as u16).unwrap_or(0);
 
@@ -124,6 +137,10 @@ where
             self.context.draw(frame, theme, *area, state)
         }
     }
+
+    fn height(&self, area: Rect) -> u16 {
+        area.height
+    }
 }
 
 pub struct ApplicationWindow<B: Backend> {
@@ -136,7 +153,7 @@ where
     B: Backend,
 {
     pub fn draw(&self, frame: &mut Frame<B>, theme: &Theme, state: &State) {
-        let shortcut_h = 3;
+        let shortcut_h = self.shortcuts.height(frame.size());
         let page_h = frame.size().height - shortcut_h;
         let areas = layout::split_area(frame.size(), vec![page_h, shortcut_h], Direction::Vertical);
 
