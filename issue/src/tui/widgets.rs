@@ -36,7 +36,7 @@ where
             let items: Vec<ListItem> = issues
                 .unwrap()
                 .iter()
-                .map(|issue| self.items(&issue.0, &issue.1, &theme))
+                .map(|(id, issue)| self.items(&id, &issue, &theme))
                 .collect();
 
             let (list, mut state) = template::list(items, *selected.unwrap(), &theme);
@@ -85,9 +85,8 @@ where
         frame.render_widget(block, area);
 
         if issues.is_some() && selected.is_some() {
-            if let Some(issue) = issues.unwrap().get(*selected.unwrap()) {
+            if let Some((_, issue)) = issues.unwrap().get(*selected.unwrap()) {
                 let comment = issue
-                    .1
                     .comment
                     .body
                     .lines()
@@ -117,13 +116,13 @@ where
         frame.render_widget(block, area);
 
         if issues.is_some() && selected.is_some() && project.is_some() {
-            if let Some(issue) = issues.unwrap().get(*selected.unwrap()) {
+            if let Some((_, issue)) = issues.unwrap().get(*selected.unwrap()) {
                 let project = project.unwrap();
-                let author = match &issue.1.author {
+                let author = match &issue.author {
                     Author::Urn { urn } => format!("{}", urn),
                     Author::Resolved(identity) => identity.name.clone(),
                 };
-                let state = match issue.1.state {
+                let state = match issue.state {
                     IssueState::Open => Span::styled(String::from(" ● "), theme.open),
                     IssueState::Closed {
                         reason: CloseReason::Solved,
@@ -136,7 +135,7 @@ where
                 let project_w = project.len() as u16 + 2;
                 let state_w = 3;
                 let author_w = author.len() as u16 + 2;
-                let comments_w = issue.1.comments().len().to_string().len() as u16 + 2;
+                let comments_w = issue.comments().len().to_string().len() as u16 + 2;
                 let title_w = area
                     .width
                     .checked_sub(project_w + state_w + comments_w + author_w)
@@ -151,13 +150,13 @@ where
                 let state = Paragraph::new(vec![Spans::from(state)]).style(theme.bg_bright_ternary);
                 frame.render_widget(state, areas[1]);
 
-                let title = template::paragraph_styled(&issue.1.title, theme.bg_bright_ternary);
+                let title = template::paragraph_styled(&issue.title, theme.bg_bright_ternary);
                 frame.render_widget(title, areas[2]);
 
                 let author = template::paragraph_styled(&author, theme.bg_bright_primary);
                 frame.render_widget(author, areas[3]);
 
-                let count = &issue.1.comments().len().to_string();
+                let count = &issue.comments().len().to_string();
                 let comments = template::paragraph(count, theme.bg_dark_secondary);
                 frame.render_widget(comments, areas[4]);
             }
