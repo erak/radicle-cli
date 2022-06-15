@@ -1,27 +1,11 @@
-use tui::layout::Rect;
+use tui::layout::{Rect};
 use tui::style::Style;
 use tui::text::{Span, Spans};
 use tui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
 
+use super::layout;
+use super::layout::Padding;
 use super::theme::Theme;
-
-pub struct Padding {
-    pub top: u16,
-    pub left: u16,
-}
-
-pub fn inner_area(area: Rect, padding: Padding) -> Rect {
-    Rect::new(
-        area.x + padding.left,
-        area.y + padding.top,
-        area.width - padding.left * 2,
-        area.height - padding.top * 2,
-    )
-}
-
-// pub fn chunks(Vec<String>) -> {
-
-// }
 
 pub fn block(theme: &Theme, area: Rect, padding: Padding, borders: bool) -> (Block, Rect) {
     let borders = match borders {
@@ -40,7 +24,7 @@ pub fn block(theme: &Theme, area: Rect, padding: Padding, borders: bool) -> (Blo
         },
     };
 
-    let inner = inner_area(area, padding);
+    let inner = layout::inner_area(area, padding);
     (block, inner)
 }
 

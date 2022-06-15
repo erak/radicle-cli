@@ -13,6 +13,7 @@ use tui::backend::{Backend, CrosstermBackend};
 use tui::Terminal;
 
 pub mod events;
+pub mod layout;
 pub mod store;
 pub mod theme;
 pub mod template;
@@ -21,7 +22,7 @@ pub mod window;
 use events::{Events, InputEvent, Key};
 use store::{State, Value};
 use theme::Theme;
-use window::{TitleWidget, PageWidget, ShortcutWidget};
+use window::{PageWidget, ShortcutWidget};
 
 pub const TICK_RATE: u64 = 200;
 pub const ACTION_QUIT: &str = "action.quit";
@@ -114,7 +115,6 @@ impl<'a> Application {
         theme: &Theme,
     ) -> anyhow::Result<()> {
         let window = window::ApplicationWindow {
-            title: Rc::new(TitleWidget),
             pages: pages,
             shortcuts: Rc::new(ShortcutWidget),
         };
