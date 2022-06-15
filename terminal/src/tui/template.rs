@@ -1,4 +1,6 @@
-use tui::layout::{Rect};
+use textwrap::{wrap, Options};
+
+use tui::layout::Rect;
 use tui::style::Style;
 use tui::text::{Span, Spans};
 use tui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
@@ -56,4 +58,22 @@ pub fn list<'a>(
         .repeat_highlight_symbol(true);
 
     (items, state)
+}
+
+pub fn lines<'a>(content: &'a String, width: u16, indent: u16) -> Vec<Spans<'a>> {
+    let wrap = width.checked_sub(indent).unwrap_or(80);
+    let whitespaces = match String::from_utf8(vec![b' '; indent as usize]) {
+        Ok(spaces) => spaces,
+        Err(_) => String::new(),
+    };
+
+    let options = Options::new(wrap as usize)
+        .initial_indent(&whitespaces)
+        .subsequent_indent(&whitespaces);
+
+    let lines = textwrap::wrap(content, options);
+    lines
+        .iter()
+        .map(|line| Spans::from(Span::styled(String::from(line.clone()), Style::default())))
+        .collect::<Vec<_>>()
 }

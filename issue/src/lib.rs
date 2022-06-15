@@ -238,8 +238,8 @@ pub fn run(options: Options) -> anyhow::Result<()> {
         Operation::Interactive => {
             if let Some(metadata) = project::get(&storage, &project)? {
                 if let Ok(mut issues) = issues.all(&metadata.urn) {
-                    for issue in &mut issues {
-                        issue.1.resolve(&storage)?;
+                    for (_, issue) in &mut issues {
+                        issue.resolve(&storage)?;
                     }
                     tui::run(&metadata, issues)?;
                 } else {

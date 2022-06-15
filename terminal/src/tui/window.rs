@@ -146,8 +146,8 @@ where
 
     pub fn draw_active_page(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
         let default = 0;
-        let index = state.get::<usize>("app.page.selected").unwrap_or(&default);
-        if let Some(page) = self.pages.get(*index) {
+        let active = state.get::<usize>("app.page.active").unwrap_or(&default);
+        if let Some(page) = self.pages.get(*active) {
             page.draw(frame, theme, area, state);
         }
     }

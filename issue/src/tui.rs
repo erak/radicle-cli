@@ -30,11 +30,12 @@ pub fn run(project: &Metadata, issues: IssueList) -> Result<()> {
     let mut app = Application::new()
         .state(vec![
             ("app.title", Box::new("Issues".to_owned())),
-            ("app.page.selected", Box::new(Page::Overview as usize)),
-            ("app.tab.selected", Box::new(Tab::Open as usize)),
+            ("app.page.active", Box::new(Page::Overview as usize)),
+            ("app.tab.active", Box::new(Tab::Open as usize)),
             ("project.name", Box::new(project.name.clone())),
-            ("project.issues.list", Box::new(issues)),
-            ("project.issues.index", Box::new(0_usize)),
+            ("project.issue.list", Box::new(issues)),
+            ("project.issue.active", Box::new(0_usize)),
+            ("project.issue.comment.active", Box::new(0_usize)),
         ])
         .bindings(vec![
             (Key::Enter, ACTION_ENTER),

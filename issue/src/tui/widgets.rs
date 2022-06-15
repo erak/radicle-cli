@@ -2,7 +2,7 @@ use tui::backend::Backend;
 use tui::layout::{Alignment, Direction, Rect};
 use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
-use tui::widgets::{ListItem, Paragraph, Wrap};
+use tui::widgets::{ListItem, Paragraph};
 use tui::Frame;
 
 use radicle_common::cobs::issue::{CloseReason, Issue, IssueId, State as IssueState};
@@ -20,35 +20,6 @@ type IssueList = Vec<(IssueId, Issue)>;
 
 #[derive(Clone)]
 pub struct BrowserWidget;
-
-impl<B> Widget<B> for BrowserWidget
-where
-    B: Backend,
-{
-    fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
-        let issues = state.get::<IssueList>("project.issues.list");
-        let selected = state.get::<usize>("project.issues.index");
-
-        let (block, inner) = template::block(theme, area, Padding { top: 1, left: 2 }, true);
-        frame.render_widget(block, area);
-
-        if issues.is_some() && selected.is_some() && !issues.unwrap().is_empty() {
-            let items: Vec<ListItem> = issues
-                .unwrap()
-                .iter()
-                .map(|(id, issue)| self.items(&id, &issue, &theme))
-                .collect();
-
-            let (list, mut state) = template::list(items, *selected.unwrap(), &theme);
-            frame.render_stateful_widget(list, inner, &mut state);
-        } else {
-            let message = String::from("No issues found");
-            let message =
-                template::paragraph(&message, Style::default()).alignment(Alignment::Center);
-            frame.render_widget(message, inner);
-        }
-    }
-}
 
 impl BrowserWidget {
     fn items(&self, _id: &IssueId, issue: &Issue, theme: &Theme) -> ListItem {
@@ -70,31 +41,72 @@ impl BrowserWidget {
     }
 }
 
+impl<B> Widget<B> for BrowserWidget
+where
+    B: Backend,
+{
+    fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
+        let issues = state.get::<IssueList>("project.issue.list");
+        let active = state.get::<usize>("project.issue.active");
+
+        let (block, inner) = template::block(theme, area, Padding { top: 1, left: 2 }, true);
+        frame.render_widget(block, area);
+
+        if issues.is_some() && active.is_some() && !issues.unwrap().is_empty() {
+            let items: Vec<ListItem> = issues
+                .unwrap()
+                .iter()
+                .map(|(id, issue)| self.items(&id, &issue, &theme))
+                .collect();
+
+            let (list, mut state) = template::list(items, *active.unwrap(), &theme);
+            frame.render_stateful_widget(list, inner, &mut state);
+        } else {
+            let message = String::from("No issues found");
+            let message =
+                template::paragraph(&message, Style::default()).alignment(Alignment::Center);
+            frame.render_widget(message, inner);
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct DetailWidget;
+
+impl DetailWidget {
+    fn items<'a>(&self, _id: &IssueId, issue: &'a Issue, _theme: &Theme, width: u16) -> Vec<ListItem<'a>> {
+        let root = ListItem::new(template::lines(&issue.comment.body, width, 0));
+        let comments = issue
+            .comments()
+            .iter()
+            .map(|comment| ListItem::new(template::lines(&comment.body, width, 4)))
+            .collect::<Vec<_>>();
+        [vec![root], comments].concat()
+    }
+}
 
 impl<B> Widget<B> for DetailWidget
 where
     B: Backend,
 {
     fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
-        let issues = state.get::<IssueList>("project.issues.list");
-        let selected = state.get::<usize>("project.issues.index");
+        let issues = state.get::<IssueList>("project.issue.list");
+        let active = state.get::<usize>("project.issue.active");
 
         let (block, inner) = template::block(theme, area, Padding { top: 1, left: 2 }, true);
         frame.render_widget(block, area);
 
-        if issues.is_some() && selected.is_some() {
-            if let Some((_, issue)) = issues.unwrap().get(*selected.unwrap()) {
-                let comment = issue
-                    .comment
-                    .body
-                    .lines()
-                    .map(|line| Spans::from(line))
-                    .collect::<Vec<_>>();
+        if issues.is_some() && active.is_some() {
+            if let Some((id, issue)) = issues.unwrap().get(*active.unwrap()) {
+                let active_comment = 0;
+                let active = state
+                    .get::<usize>("project.issue.comment.active")
+                    .unwrap_or(&active_comment);
 
-                let details = Paragraph::new(comment).wrap(Wrap { trim: true });
-                frame.render_widget(details, inner);
+                let items = self.items(&id, &issue, &theme, inner.width);
+
+                let (list, mut state) = template::list(items, *active, &theme);
+                frame.render_stateful_widget(list, inner, &mut state);
             }
         }
     }
@@ -109,14 +121,14 @@ where
 {
     fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
         let project = state.get::<String>("project.name");
-        let issues = state.get::<IssueList>("project.issues.list");
-        let selected = state.get::<usize>("project.issues.index");
+        let issues = state.get::<IssueList>("project.issue.list");
+        let active = state.get::<usize>("project.issue.active");
 
         let (block, _) = template::block(theme, area, Padding { top: 0, left: 0 }, false);
         frame.render_widget(block, area);
 
-        if issues.is_some() && selected.is_some() && project.is_some() {
-            if let Some((_, issue)) = issues.unwrap().get(*selected.unwrap()) {
+        if issues.is_some() && active.is_some() && project.is_some() {
+            if let Some((_, issue)) = issues.unwrap().get(*active.unwrap()) {
                 let project = project.unwrap();
                 let author = match &issue.author {
                     Author::Urn { urn } => format!("{}", urn),
