@@ -6,7 +6,7 @@ use radicle_terminal as term;
 use term::tui::store::State;
 use term::tui::Action;
 
-use super::state::{Page, Tab};
+use super::state::Page;
 
 type IssueList = Vec<(IssueId, Issue)>;
 
@@ -66,8 +66,8 @@ impl Action for UpAction {
                                 state.set("project.issues.index", Box::new(select));
                             }
                         }
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
             }
         }
@@ -90,8 +90,8 @@ impl Action for DownAction {
                                 state.set("project.issues.index", Box::new(select));
                             }
                         }
-                    },
-                    _ => {},
+                    }
+                    _ => {}
                 }
             }
         }
