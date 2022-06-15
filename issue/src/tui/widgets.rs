@@ -16,6 +16,8 @@ use term::tui::template;
 use term::tui::theme::Theme;
 use term::tui::window::Widget;
 
+use super::state::{Page, Tab};
+
 type IssueList = Vec<(IssueId, Issue)>;
 
 #[derive(Clone)]

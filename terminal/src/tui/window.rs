@@ -96,8 +96,9 @@ where
 {
     fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
         let title_h = 3;
-        let widget_h = (area.height / self.widgets.len() as u16) - 2;
         let context_h = 1;
+        let area_h = area.height.checked_sub(title_h + context_h).unwrap_or(0);
+        let widget_h = area_h.checked_div(self.widgets.len() as u16).unwrap_or(0);
 
         let lengths = [
             vec![title_h],
@@ -143,7 +144,7 @@ where
 
     pub fn draw_active_page(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
         let default = 0;
-        let index = state.get::<usize>("app.page.index").unwrap_or(&default);
+        let index = state.get::<usize>("app.page.selected").unwrap_or(&default);
         if let Some(page) = self.pages.get(*index) {
             page.draw(frame, theme, area, state);
         }

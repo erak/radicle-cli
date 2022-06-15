@@ -6,6 +6,8 @@ use crossterm::event;
 
 #[derive(PartialEq, Eq, Clone, Copy, Hash, Debug)]
 pub enum Key {
+    Enter,
+    Esc,
     Up,
     Down,
     Char(char),
@@ -19,6 +21,14 @@ impl From<event::KeyEvent> for Key {
                 code: event::KeyCode::Char(c),
                 ..
             } => Key::Char(c),
+            event::KeyEvent {
+                code: event::KeyCode::Enter,
+                ..
+            } => Key::Enter,
+            event::KeyEvent {
+                code: event::KeyCode::Esc,
+                ..
+            } => Key::Esc,
             event::KeyEvent {
                 code: event::KeyCode::Up,
                 ..

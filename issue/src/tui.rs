@@ -8,42 +8,59 @@ use radicle_terminal as term;
 
 use term::tui::events::Key;
 use term::tui::theme::Theme;
-use term::tui::window::{PageWidget, TitleWidget};
+use term::tui::window::{EmptyWidget, PageWidget, TitleWidget};
 use term::tui::Application;
 
 mod actions;
+mod state;
 mod widgets;
 
-use actions::{BrowseDownAction, BrowseUpAction};
-use widgets::{BrowserWidget, DetailWidget, ContextWidget};
+use actions::{EnterAction, EscAction, DownAction, UpAction};
+use state::{Page, Tab};
+use widgets::{BrowserWidget, ContextWidget, DetailWidget};
 
 type IssueList = Vec<(IssueId, Issue)>;
 
-pub const ACTION_BROWSE_UP: &str = "action.browse.up";
-pub const ACTION_BROWSE_DOWN: &str = "action.browse.down";
+pub const ACTION_ENTER: &str = "action.enter";
+pub const ACTION_ESC: &str = "action.esc";
+pub const ACTION_UP: &str = "action.up";
+pub const ACTION_DOWN: &str = "action.down";
 
 pub fn run(project: &Metadata, issues: IssueList) -> Result<()> {
     let mut app = Application::new()
         .state(vec![
             ("app.title", Box::new("Issues".to_owned())),
+            ("app.page.selected", Box::new(Page::Overview as usize)),
+            ("app.tab.selected", Box::new(Tab::Open as usize)),
             ("project.name", Box::new(project.name.clone())),
             ("project.issues.list", Box::new(issues)),
             ("project.issues.index", Box::new(0_usize)),
         ])
         .bindings(vec![
-            (Key::Up, ACTION_BROWSE_UP),
-            (Key::Down, ACTION_BROWSE_DOWN),
+            (Key::Enter, ACTION_ENTER),
+            (Key::Esc, ACTION_ESC),
+            (Key::Up, ACTION_UP),
+            (Key::Down, ACTION_DOWN),
         ])
         .actions(vec![
-            (ACTION_BROWSE_UP, Box::new(BrowseUpAction)),
-            (ACTION_BROWSE_DOWN, Box::new(BrowseDownAction)),
+            (ACTION_ENTER, Box::new(EnterAction)),
+            (ACTION_ESC, Box::new(EscAction)),
+            (ACTION_UP, Box::new(UpAction)),
+            (ACTION_DOWN, Box::new(DownAction)),
         ]);
 
-    let pages = vec![PageWidget {
-        title: Rc::new(TitleWidget),
-        widgets: vec![Rc::new(BrowserWidget), Rc::new(DetailWidget)],
-        context: Rc::new(ContextWidget),
-    }];
+    let pages = vec![
+        PageWidget {
+            title: Rc::new(TitleWidget),
+            widgets: vec![Rc::new(BrowserWidget)],
+            context: Rc::new(EmptyWidget),
+        },
+        PageWidget {
+            title: Rc::new(EmptyWidget),
+            widgets: vec![Rc::new(DetailWidget)],
+            context: Rc::new(ContextWidget),
+        },
+    ];
 
     let theme = Theme::default_dark();
     app.execute(pages, &theme)?;
