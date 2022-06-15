@@ -24,15 +24,16 @@ where
     B: Backend,
 {
     fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
-        let default = String::from("-");
-        let _ = state.get::<String>("app.title").unwrap_or(&default);
-        let project = state.get::<String>("project.name").unwrap_or(&default);
+        let project = state.get::<String>("project.name");
 
         let (block, inner) = template::block(theme, area, Padding { top: 1, left: 4 }, true);
         frame.render_widget(block, area);
 
-        let project = template::paragraph(project, theme.highlight_invert);
-        frame.render_widget(project, inner);
+        if project.is_some() {
+            let project = project.unwrap();
+            let project = template::paragraph(project, theme.highlight_invert);
+            frame.render_widget(project, inner);
+        }
     }
 }
 
@@ -44,27 +45,28 @@ where
     B: Backend,
 {
     fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
-        let default = vec![];
-        let shortcuts = state
-            .get::<Vec<String>>("app.shortcuts")
-            .unwrap_or(&default);
-        let lengths = shortcuts
-            .iter()
-            .map(|s| s.len() as u16 + 2)
-            .collect::<Vec<_>>();
+        let shortcuts = state.get::<Vec<String>>("app.shortcuts");
 
-        let (_, inner) = template::block(theme, area, Padding { top: 1, left: 2 }, false);
-        let areas = layout::split_area(inner, lengths, Direction::Horizontal);
-        let mut areas = areas.iter();
+        if shortcuts.is_some() {
+            let shortcuts = shortcuts.unwrap();
+            let lengths = shortcuts
+                .iter()
+                .map(|s| s.len() as u16 + 2)
+                .collect::<Vec<_>>();
 
-        let shortcuts = shortcuts
-            .iter()
-            .map(|s| Span::styled(s, theme.ternary))
-            .collect::<Vec<_>>();
-        for shortcut in shortcuts {
-            if let Some(area) = areas.next() {
-                let paragraph = Paragraph::new(Spans::from(shortcut));
-                frame.render_widget(paragraph, *area);
+            let (_, inner) = template::block(theme, area, Padding { top: 1, left: 2 }, false);
+            let areas = layout::split_area(inner, lengths, Direction::Horizontal);
+            let mut areas = areas.iter();
+
+            let shortcuts = shortcuts
+                .iter()
+                .map(|s| Span::styled(s, theme.ternary))
+                .collect::<Vec<_>>();
+            for shortcut in shortcuts {
+                if let Some(area) = areas.next() {
+                    let paragraph = Paragraph::new(Spans::from(shortcut));
+                    frame.render_widget(paragraph, *area);
+                }
             }
         }
     }
