@@ -43,8 +43,8 @@ impl Theme {
                 symbol: String::from("│ "),
             },
             highlight: Style::default()
-                .fg(Color::Rgb(238, 111, 248))
-                .add_modifier(Modifier::BOLD),
+                .fg(Color::Rgb(238, 111, 248)),
+                // .add_modifier(Modifier::BOLD),
             highlight_dim: Style::default()
                 .fg(Color::Rgb(255, 255, 255))
                 .add_modifier(Modifier::BOLD),
@@ -84,8 +84,8 @@ impl Theme {
                 symbol: String::from("│ "),
             },
             highlight: Style::default()
-                .fg(Color::Rgb(238, 111, 248))
-                .add_modifier(Modifier::BOLD),
+                .fg(Color::Rgb(238, 111, 248)),
+                // .add_modifier(Modifier::BOLD),
             highlight_dim: Style::default()
                 .fg(Color::Rgb(255, 255, 255))
                 .add_modifier(Modifier::BOLD),

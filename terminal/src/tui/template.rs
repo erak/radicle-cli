@@ -1,7 +1,7 @@
-use textwrap::{wrap, Options};
+use textwrap::Options;
 
 use tui::layout::Rect;
-use tui::style::Style;
+use tui::style::{Color, Style};
 use tui::text::{Span, Spans};
 use tui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
 
@@ -62,10 +62,7 @@ pub fn list<'a>(
 
 pub fn lines<'a>(content: &'a String, width: u16, indent: u16) -> Vec<Spans<'a>> {
     let wrap = width.checked_sub(indent).unwrap_or(80);
-    let whitespaces = match String::from_utf8(vec![b' '; indent as usize]) {
-        Ok(spaces) => spaces,
-        Err(_) => String::new(),
-    };
+    let whitespaces = whitespaces(indent);
 
     let options = Options::new(wrap as usize)
         .initial_indent(&whitespaces)
@@ -74,6 +71,13 @@ pub fn lines<'a>(content: &'a String, width: u16, indent: u16) -> Vec<Spans<'a>>
     let lines = textwrap::wrap(content, options);
     lines
         .iter()
-        .map(|line| Spans::from(Span::styled(String::from(line.clone()), Style::default())))
+        .map(|line| Spans::from(Span::styled(String::from(line.clone()), Style::default().fg(Color::Rgb(200, 200, 200)))))
         .collect::<Vec<_>>()
+}
+
+pub fn whitespaces(indent: u16) -> String {
+    match String::from_utf8(vec![b' '; indent as usize]) {
+        Ok(spaces) => spaces,
+        Err(_) => String::new(),
+    }
 }

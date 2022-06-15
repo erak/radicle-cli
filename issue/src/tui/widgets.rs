@@ -1,6 +1,10 @@
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+use timeago;
+
 use tui::backend::Backend;
 use tui::layout::{Alignment, Direction, Rect};
-use tui::style::{Color, Modifier, Style};
+use tui::style::{Modifier, Style};
 use tui::text::{Span, Spans};
 use tui::widgets::{ListItem, Paragraph};
 use tui::Frame;
@@ -23,19 +27,26 @@ pub struct BrowserWidget;
 
 impl BrowserWidget {
     fn items(&self, _id: &IssueId, issue: &Issue, theme: &Theme) -> ListItem {
-        let author = match &issue.author {
-            Author::Urn { urn } => format!("{}", urn),
-            Author::Resolved(identity) => identity.name.clone(),
-        };
+        let fmt = timeago::Formatter::new();
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let timeago = Duration::from_secs(now - issue.comment.timestamp.as_secs());
 
         let lines = vec![
             Spans::from(Span::styled(issue.title.clone(), theme.primary)),
-            Spans::from(Span::styled(
-                format!("{}", author),
-                Style::default()
-                    .add_modifier(Modifier::ITALIC)
-                    .fg(Color::DarkGray),
-            )),
+            Spans::from(vec![
+                Span::styled(
+                    issue.author.name(),
+                    theme.primary_dim.add_modifier(Modifier::ITALIC),
+                ),
+                Span::raw(template::whitespaces(1)),
+                Span::styled(
+                    fmt.convert(timeago),
+                    theme.ternary_dim.add_modifier(Modifier::ITALIC),
+                ),
+            ]),
         ];
         ListItem::new(lines)
     }
@@ -74,13 +85,88 @@ where
 pub struct DetailWidget;
 
 impl DetailWidget {
-    fn items<'a>(&self, _id: &IssueId, issue: &'a Issue, _theme: &Theme, width: u16) -> Vec<ListItem<'a>> {
-        let root = ListItem::new(template::lines(&issue.comment.body, width, 0));
+    fn items<'a>(
+        &self,
+        _id: &IssueId,
+        issue: &'a Issue,
+        theme: &Theme,
+        width: u16,
+    ) -> Vec<ListItem<'a>> {
+        let fmt = timeago::Formatter::new();
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let timeago = Duration::from_secs(now - issue.comment.timestamp.as_secs());
+
+        let reactions = issue.comment.reactions.iter().collect::<Vec<_>>();
+        let reactions = reactions
+            .iter()
+            .map(|(r, _)| format!("{} ", r.emoji))
+            .collect::<String>();
+
+        let meta = vec![
+            Span::raw(template::whitespaces(0)),
+            Span::styled(
+                issue.author.name(),
+                theme.primary_dim.add_modifier(Modifier::ITALIC),
+            ),
+            Span::raw(template::whitespaces(1)),
+            Span::styled(
+                fmt.convert(timeago),
+                theme.ternary_dim.add_modifier(Modifier::ITALIC),
+            ),
+            Span::raw(template::whitespaces(1)),
+            Span::raw(reactions),
+        ];
+        let root = [
+            template::lines(&issue.comment.body, width, 0),
+            vec![Spans::from(String::new()), Spans::from(meta)],
+            vec![Spans::from(String::new())],
+        ]
+        .concat();
+        let root = ListItem::new(root);
+
         let comments = issue
             .comments()
             .iter()
-            .map(|comment| ListItem::new(template::lines(&comment.body, width, 4)))
+            .map(|comment| {
+                let fmt = timeago::Formatter::new();
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs();
+                let timeago = Duration::from_secs(now - comment.timestamp.as_secs());
+
+                let reactions = comment.reactions.iter().collect::<Vec<_>>();
+                let reactions = reactions
+                    .iter()
+                    .map(|(r, _)| format!("{} ", r.emoji))
+                    .collect::<String>();
+                let meta = vec![
+                    Span::raw(template::whitespaces(4)),
+                    Span::styled(
+                        comment.author.name(),
+                        theme.primary_dim.add_modifier(Modifier::ITALIC),
+                    ),
+                    Span::raw(template::whitespaces(1)),
+                    Span::styled(
+                        fmt.convert(timeago),
+                        theme.ternary_dim.add_modifier(Modifier::ITALIC),
+                    ),
+                    Span::raw(template::whitespaces(1)),
+                    Span::raw(reactions),
+                ];
+                let comment = [
+                    template::lines(&comment.body, width, 4),
+                    vec![Spans::from(String::new()), Spans::from(meta)],
+                    vec![Spans::from(String::new())],
+                ]
+                .concat();
+                ListItem::new(comment)
+            })
             .collect::<Vec<_>>();
+
         [vec![root], comments].concat()
     }
 }
