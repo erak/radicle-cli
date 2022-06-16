@@ -1,5 +1,7 @@
 use std::rc::Rc;
 
+use anyhow::{Error, Result};
+
 use tui::backend::Backend;
 use tui::layout::{Direction, Rect};
 use tui::text::{Span, Spans};
@@ -13,8 +15,14 @@ use super::template;
 use super::theme::Theme;
 
 pub trait Widget<B: Backend> {
-    fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State);
-    fn height(&self, area: Rect) -> u16; 
+    fn draw(
+        &self,
+        frame: &mut Frame<B>,
+        theme: &Theme,
+        area: Rect,
+        state: &State,
+    ) -> Result<(), Error>;
+    fn height(&self, area: Rect) -> u16;
 }
 
 #[derive(Copy, Clone)]
@@ -24,17 +32,22 @@ impl<B> Widget<B> for TitleWidget
 where
     B: Backend,
 {
-    fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
-        let project = state.get::<String>("project.name");
+    fn draw(
+        &self,
+        frame: &mut Frame<B>,
+        theme: &Theme,
+        area: Rect,
+        state: &State,
+    ) -> Result<(), Error> {
+        let project = state.get::<String>("project.name")?;
 
         let (block, inner) = template::block(theme, area, Padding { top: 1, left: 4 }, true);
         frame.render_widget(block, area);
 
-        if project.is_some() {
-            let project = project.unwrap();
-            let project = template::paragraph(project, theme.highlight_invert);
-            frame.render_widget(project, inner);
-        }
+        let project = template::paragraph(project, theme.highlight_invert);
+        frame.render_widget(project, inner);
+
+        Ok(())
     }
 
     fn height(&self, _area: Rect) -> u16 {
@@ -49,31 +62,35 @@ impl<B> Widget<B> for ShortcutWidget
 where
     B: Backend,
 {
-    fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
-        let shortcuts = state.get::<Vec<String>>("app.shortcuts");
+    fn draw(
+        &self,
+        frame: &mut Frame<B>,
+        theme: &Theme,
+        area: Rect,
+        state: &State,
+    ) -> Result<(), Error> {
+        let shortcuts = state.get::<Vec<String>>("app.shortcuts")?;
+        let lengths = shortcuts
+            .iter()
+            .map(|s| s.len() as u16 + 2)
+            .collect::<Vec<_>>();
 
-        if shortcuts.is_some() {
-            let shortcuts = shortcuts.unwrap();
-            let lengths = shortcuts
-                .iter()
-                .map(|s| s.len() as u16 + 2)
-                .collect::<Vec<_>>();
+        let (_, inner) = template::block(theme, area, Padding { top: 1, left: 2 }, false);
+        let areas = layout::split_area(inner, lengths, Direction::Horizontal);
+        let mut areas = areas.iter();
 
-            let (_, inner) = template::block(theme, area, Padding { top: 1, left: 2 }, false);
-            let areas = layout::split_area(inner, lengths, Direction::Horizontal);
-            let mut areas = areas.iter();
-
-            let shortcuts = shortcuts
-                .iter()
-                .map(|s| Span::styled(s, theme.ternary))
-                .collect::<Vec<_>>();
-            for shortcut in shortcuts {
-                if let Some(area) = areas.next() {
-                    let paragraph = Paragraph::new(Spans::from(shortcut));
-                    frame.render_widget(paragraph, *area);
-                }
+        let shortcuts = shortcuts
+            .iter()
+            .map(|s| Span::styled(s, theme.ternary))
+            .collect::<Vec<_>>();
+        for shortcut in shortcuts {
+            if let Some(area) = areas.next() {
+                let paragraph = Paragraph::new(Spans::from(shortcut));
+                frame.render_widget(paragraph, *area);
             }
         }
+
+        Ok(())
     }
 
     fn height(&self, _area: Rect) -> u16 {
@@ -88,9 +105,17 @@ impl<B> Widget<B> for EmptyWidget
 where
     B: Backend,
 {
-    fn draw(&self, frame: &mut Frame<B>, _theme: &Theme, area: Rect, _state: &State) {
+    fn draw(
+        &self,
+        frame: &mut Frame<B>,
+        _theme: &Theme,
+        area: Rect,
+        _state: &State,
+    ) -> Result<(), Error> {
         let block = Block::default().borders(Borders::NONE);
         frame.render_widget(block, area);
+
+        Ok(())
     }
 
     fn height(&self, _area: Rect) -> u16 {
@@ -109,7 +134,13 @@ impl<B> Widget<B> for PageWidget<B>
 where
     B: Backend,
 {
-    fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
+    fn draw(
+        &self,
+        frame: &mut Frame<B>,
+        theme: &Theme,
+        area: Rect,
+        state: &State,
+    ) -> Result<(), Error> {
         let title_h = self.title.height(area);
         let context_h = self.context.height(area);
         let area_h = area.height.checked_sub(title_h + context_h).unwrap_or(0);
@@ -126,16 +157,18 @@ where
         let mut areas = areas.iter();
 
         if let Some(area) = areas.next() {
-            self.title.draw(frame, theme, *area, state)
+            self.title.draw(frame, theme, *area, state)?;
         }
         for widget in &self.widgets {
             if let Some(area) = areas.next() {
-                widget.draw(frame, theme, *area, state)
+                widget.draw(frame, theme, *area, state)?;
             }
         }
         if let Some(area) = areas.next() {
-            self.context.draw(frame, theme, *area, state)
+            self.context.draw(frame, theme, *area, state)?;
         }
+
+        Ok(())
     }
 
     fn height(&self, area: Rect) -> u16 {
@@ -152,20 +185,22 @@ impl<B> ApplicationWindow<B>
 where
     B: Backend,
 {
-    pub fn draw(&self, frame: &mut Frame<B>, theme: &Theme, state: &State) {
+    pub fn draw(&self, frame: &mut Frame<B>, theme: &Theme, state: &State) -> Result<(), Error> {
         let shortcut_h = self.shortcuts.height(frame.size());
         let page_h = frame.size().height - shortcut_h;
         let areas = layout::split_area(frame.size(), vec![page_h, shortcut_h], Direction::Vertical);
 
-        self.draw_active_page(frame, theme, areas[0], state);
-        self.shortcuts.draw(frame, theme, areas[1], state);
+        self.draw_active_page(frame, theme, areas[0], state)?;
+        self.shortcuts.draw(frame, theme, areas[1], state)?;
+
+        Ok(())
     }
 
-    pub fn draw_active_page(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
-        let default = 0;
-        let active = state.get::<usize>("app.page.active").unwrap_or(&default);
+    pub fn draw_active_page(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) -> Result<(), Error> {
+        let active = state.get::<usize>("app.page.active")?;
         if let Some(page) = self.pages.get(*active) {
-            page.draw(frame, theme, area, state);
+            page.draw(frame, theme, area, state)?;
         }
+        Ok(())
     }
 }

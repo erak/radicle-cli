@@ -1,5 +1,6 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use anyhow::{Error, Result};
 use timeago;
 
 use tui::backend::Backend;
@@ -56,21 +57,26 @@ impl<B> Widget<B> for BrowserWidget
 where
     B: Backend,
 {
-    fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
-        let issues = state.get::<IssueList>("project.issue.list");
-        let active = state.get::<usize>("project.issue.active");
+    fn draw(
+        &self,
+        frame: &mut Frame<B>,
+        theme: &Theme,
+        area: Rect,
+        state: &State,
+    ) -> Result<(), Error> {
+        let issues = state.get::<IssueList>("project.issue.list")?;
+        let active = state.get::<usize>("project.issue.active")?;
 
         let (block, inner) = template::block(theme, area, Padding { top: 1, left: 2 }, true);
         frame.render_widget(block, area);
 
-        if issues.is_some() && active.is_some() && !issues.unwrap().is_empty() {
+        if !issues.is_empty() {
             let items: Vec<ListItem> = issues
-                .unwrap()
                 .iter()
                 .map(|(id, issue)| self.items(&id, &issue, &theme))
                 .collect();
 
-            let (list, mut state) = template::list(items, *active.unwrap(), &theme);
+            let (list, mut state) = template::list(items, *active, &theme);
             frame.render_stateful_widget(list, inner, &mut state);
         } else {
             let message = String::from("No issues found");
@@ -78,6 +84,8 @@ where
                 template::paragraph(&message, Style::default()).alignment(Alignment::Center);
             frame.render_widget(message, inner);
         }
+
+        Ok(())
     }
 
     fn height(&self, area: Rect) -> u16 {
@@ -179,26 +187,28 @@ impl<B> Widget<B> for DetailWidget
 where
     B: Backend,
 {
-    fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
-        let issues = state.get::<IssueList>("project.issue.list");
-        let active = state.get::<usize>("project.issue.active");
+    fn draw(
+        &self,
+        frame: &mut Frame<B>,
+        theme: &Theme,
+        area: Rect,
+        state: &State,
+    ) -> Result<(), Error> {
+        let issues = state.get::<IssueList>("project.issue.list")?;
+        let active = state.get::<usize>("project.issue.active")?;
 
         let (block, inner) = template::block(theme, area, Padding { top: 1, left: 2 }, true);
         frame.render_widget(block, area);
 
-        if issues.is_some() && active.is_some() {
-            if let Some((id, issue)) = issues.unwrap().get(*active.unwrap()) {
-                let active_comment = 0;
-                let active = state
-                    .get::<usize>("project.issue.comment.active")
-                    .unwrap_or(&active_comment);
+        if let Some((id, issue)) = issues.get(*active) {
+            let active = state.get::<usize>("project.issue.comment.active")?;
+            let items = self.items(&id, &issue, &theme, inner.width);
 
-                let items = self.items(&id, &issue, &theme, inner.width);
-
-                let (list, mut state) = template::list(items, *active, &theme);
-                frame.render_stateful_widget(list, inner, &mut state);
-            }
+            let (list, mut state) = template::list(items, *active, &theme);
+            frame.render_stateful_widget(list, inner, &mut state);
         }
+
+        Ok(())
     }
 
     fn height(&self, area: Rect) -> u16 {
@@ -213,60 +223,65 @@ impl<B> Widget<B> for ContextWidget
 where
     B: Backend,
 {
-    fn draw(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) {
-        let project = state.get::<String>("project.name");
-        let issues = state.get::<IssueList>("project.issue.list");
-        let active = state.get::<usize>("project.issue.active");
+    fn draw(
+        &self,
+        frame: &mut Frame<B>,
+        theme: &Theme,
+        area: Rect,
+        state: &State,
+    ) -> Result<(), Error> {
+        let project = state.get::<String>("project.name")?;
+        let issues = state.get::<IssueList>("project.issue.list")?;
+        let active = state.get::<usize>("project.issue.active")?;
 
         let (block, _) = template::block(theme, area, Padding { top: 0, left: 0 }, false);
         frame.render_widget(block, area);
 
-        if issues.is_some() && active.is_some() && project.is_some() {
-            if let Some((_, issue)) = issues.unwrap().get(*active.unwrap()) {
-                let project = project.unwrap();
-                let author = match &issue.author {
-                    Author::Urn { urn } => format!("{}", urn),
-                    Author::Resolved(identity) => identity.name.clone(),
-                };
-                let state = match issue.state {
-                    IssueState::Open => Span::styled(String::from(" ● "), theme.open),
-                    IssueState::Closed {
-                        reason: CloseReason::Solved,
-                    } => Span::styled(String::from(" ✔ "), theme.solved),
-                    IssueState::Closed {
-                        reason: CloseReason::Other,
-                    } => Span::styled(String::from(" ✖ "), theme.closed),
-                };
+        if let Some((_, issue)) = issues.get(*active) {
+            let author = match &issue.author {
+                Author::Urn { urn } => format!("{}", urn),
+                Author::Resolved(identity) => identity.name.clone(),
+            };
+            let state = match issue.state {
+                IssueState::Open => Span::styled(String::from(" ● "), theme.open),
+                IssueState::Closed {
+                    reason: CloseReason::Solved,
+                } => Span::styled(String::from(" ✔ "), theme.solved),
+                IssueState::Closed {
+                    reason: CloseReason::Other,
+                } => Span::styled(String::from(" ✖ "), theme.closed),
+            };
 
-                let project_w = project.len() as u16 + 2;
-                let state_w = 3;
-                let author_w = author.len() as u16 + 2;
-                let comments_w = issue.comments().len().to_string().len() as u16 + 2;
-                let title_w = area
-                    .width
-                    .checked_sub(project_w + state_w + comments_w + author_w)
-                    .unwrap_or(0);
+            let project_w = project.len() as u16 + 2;
+            let state_w = 3;
+            let author_w = author.len() as u16 + 2;
+            let comments_w = issue.comments().len().to_string().len() as u16 + 2;
+            let title_w = area
+                .width
+                .checked_sub(project_w + state_w + comments_w + author_w)
+                .unwrap_or(0);
 
-                let widths = vec![project_w, state_w, title_w, author_w, comments_w];
-                let areas = layout::split_area(area, widths, Direction::Horizontal);
+            let widths = vec![project_w, state_w, title_w, author_w, comments_w];
+            let areas = layout::split_area(area, widths, Direction::Horizontal);
 
-                let project = template::paragraph_styled(project, theme.highlight_invert);
-                frame.render_widget(project, areas[0]);
+            let project = template::paragraph_styled(project, theme.highlight_invert);
+            frame.render_widget(project, areas[0]);
 
-                let state = Paragraph::new(vec![Spans::from(state)]).style(theme.bg_bright_ternary);
-                frame.render_widget(state, areas[1]);
+            let state = Paragraph::new(vec![Spans::from(state)]).style(theme.bg_bright_ternary);
+            frame.render_widget(state, areas[1]);
 
-                let title = template::paragraph_styled(&issue.title, theme.bg_bright_ternary);
-                frame.render_widget(title, areas[2]);
+            let title = template::paragraph_styled(&issue.title, theme.bg_bright_ternary);
+            frame.render_widget(title, areas[2]);
 
-                let author = template::paragraph_styled(&author, theme.bg_bright_primary);
-                frame.render_widget(author, areas[3]);
+            let author = template::paragraph_styled(&author, theme.bg_bright_primary);
+            frame.render_widget(author, areas[3]);
 
-                let count = &issue.comments().len().to_string();
-                let comments = template::paragraph(count, theme.bg_dark_secondary);
-                frame.render_widget(comments, areas[4]);
-            }
+            let count = &issue.comments().len().to_string();
+            let comments = template::paragraph(count, theme.bg_dark_secondary);
+            frame.render_widget(comments, areas[4]);
         }
+
+        Ok(())
     }
 
     fn height(&self, _area: Rect) -> u16 {

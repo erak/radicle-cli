@@ -237,14 +237,11 @@ pub fn run(options: Options) -> anyhow::Result<()> {
         }
         Operation::Interactive => {
             if let Some(metadata) = project::get(&storage, &project)? {
-                if let Ok(mut issues) = issues.all(&metadata.urn) {
-                    for (_, issue) in &mut issues {
-                        issue.resolve(&storage)?;
-                    }
-                    tui::run(&metadata, issues)?;
-                } else {
-                    anyhow::bail!("could not issues");
+                let mut issues = issues.all(&metadata.urn)?;
+                for (_, issue) in &mut issues {
+                    issue.resolve(&storage)?;
                 }
+                tui::run(&metadata, issues)?;
             } else {
                 anyhow::bail!("could not load project metadata");
             }

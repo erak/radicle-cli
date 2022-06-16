@@ -3,6 +3,8 @@ use std::io::{stdout, Stdout};
 use std::rc::Rc;
 use std::time::Duration;
 
+use anyhow::{Error, Result};
+
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
 use crossterm::execute;
 use crossterm::terminal::{
@@ -15,8 +17,8 @@ use tui::Terminal;
 pub mod events;
 pub mod layout;
 pub mod store;
-pub mod theme;
 pub mod template;
+pub mod theme;
 pub mod window;
 
 use events::{Events, InputEvent, Key};
@@ -29,13 +31,14 @@ pub const ACTION_QUIT: &str = "action.quit";
 
 pub type BoxedAction = Box<dyn Action>;
 pub trait Action {
-    fn execute(&mut self, state: &mut State);
+    fn execute(&mut self, state: &mut State) -> Result<(), Error>;
 }
 
 pub struct QuitAction;
 impl Action for QuitAction {
-    fn execute(&mut self, state: &mut State) {
+    fn execute(&mut self, state: &mut State) -> Result<(), Error> {
         state.set("app.running", Box::new(false));
+        Ok(())
     }
 }
 
@@ -84,7 +87,7 @@ impl<'a> Application {
         &mut self,
         pages: Vec<PageWidget<CrosstermBackend<Stdout>>>,
         theme: &Theme,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<(), Error> {
         enable_raw_mode()?;
         let mut stdout = stdout();
         execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
@@ -113,7 +116,7 @@ impl<'a> Application {
         terminal: &mut Terminal<B>,
         pages: Vec<PageWidget<B>>,
         theme: &Theme,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<(), Error> {
         let window = window::ApplicationWindow {
             pages: pages,
             shortcuts: Rc::new(ShortcutWidget),
@@ -121,17 +124,22 @@ impl<'a> Application {
         let events = Events::new(Duration::from_millis(TICK_RATE));
 
         loop {
-            terminal.draw(|f| window.draw(f, theme, &self.state))?;
+            let mut result: Option<Error> = None;
+            terminal.draw(|f| {
+                error = window.draw(f, theme, &self.state).err();
+            })?;
+            if let Some(err) = error {
+                return Err(err.into());
+            }
 
             match events.next()? {
-                InputEvent::Input(key) => self.on_key(&key),
+                InputEvent::Input(key) => self.on_key(&key)?,
                 InputEvent::Tick => self.on_tick(),
             };
 
-            if let Some(running) = self.state.get::<bool>("app.running") {
-                if !running {
-                    return Ok(());
-                }
+            let running = self.state.get::<bool>("app.running")?;
+            if !running {
+                return Ok(());
             }
         }
     }
@@ -157,12 +165,14 @@ impl<'a> Application {
         self
     }
 
-    fn on_key(&mut self, key: &Key) {
+    fn on_key(&mut self, key: &Key) -> Result<(), Error> {
         if let Some(id) = self.bindings.get(*key) {
             if let Some(action) = self.actions.get_mut(id) {
-                action.execute(&mut self.state);
+                action.execute(&mut self.state)?;
             }
         }
+
+        Ok(())
     }
 
     fn on_tick(&mut self) {}
@@ -183,7 +193,10 @@ impl Default for Application {
             .state(vec![
                 ("app.running", Box::new(true)),
                 ("app.page.index", Box::new(0_usize)),
-                ("app.shortcuts", Box::new(vec![String::from("q quit"), String::from("? help")])),
+                (
+                    "app.shortcuts",
+                    Box::new(vec![String::from("q quit"), String::from("? help")]),
+                ),
             ])
             .bindings(vec![(Key::Char('q'), ACTION_QUIT)])
             .actions(vec![(ACTION_QUIT, Box::new(QuitAction))])

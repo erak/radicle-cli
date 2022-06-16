@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use anyhow::Result;
+use anyhow::{Error, Result};
 
 use radicle_common::cobs::issue::{Issue, IssueId};
 use radicle_common::project::Metadata;
@@ -26,7 +26,7 @@ pub const ACTION_ESC: &str = "action.esc";
 pub const ACTION_UP: &str = "action.up";
 pub const ACTION_DOWN: &str = "action.down";
 
-pub fn run(project: &Metadata, issues: IssueList) -> Result<()> {
+pub fn run(project: &Metadata, issues: IssueList) -> Result<(), Error> {
     let mut app = Application::new()
         .state(vec![
             ("app.title", Box::new("Issues".to_owned())),
