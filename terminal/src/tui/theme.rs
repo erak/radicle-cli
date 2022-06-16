@@ -19,6 +19,7 @@ pub struct Theme {
     pub highlight_invert: Style,
     pub primary: Style,
     pub primary_dim: Style,
+    pub primary_invert: Style,
     pub secondary: Style,
     pub secondary_dim: Style,
     pub ternary: Style,
@@ -54,6 +55,10 @@ impl Theme {
                 .add_modifier(Modifier::BOLD),
             primary: Style::default().fg(Color::Rgb(117, 113, 249)),
             primary_dim: Style::default().fg(Color::Rgb(79, 75, 187)),
+            primary_invert: Style::default()
+                .bg(Color::Rgb(79, 75, 187))
+                .fg(Color::White)
+                .add_modifier(Modifier::BOLD),
             secondary: Style::default().fg(Color::Rgb(66, 245, 161)),
             secondary_dim: Style::default().fg(Color::Rgb(30, 102, 68)),
             ternary: Style::default().fg(Color::Rgb(100, 100, 100)),
@@ -94,6 +99,9 @@ impl Theme {
                 .add_modifier(Modifier::BOLD),
             primary: Style::default().fg(Color::Rgb(117, 113, 249)),
             primary_dim: Style::default().fg(Color::Rgb(79, 75, 187)),
+            primary_invert: Style::default()
+                .fg(Color::Rgb(117, 113, 249))
+                .add_modifier(Modifier::BOLD),
             secondary: Style::default().fg(Color::Rgb(66, 245, 161)),
             secondary_dim: Style::default().fg(Color::Rgb(30, 102, 68)),
             ternary: Style::default().fg(Color::Rgb(100, 100, 100)),

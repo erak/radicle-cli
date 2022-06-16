@@ -14,6 +14,12 @@ use super::store::State;
 use super::template;
 use super::theme::Theme;
 
+#[derive(Eq, PartialEq, PartialOrd)]
+pub enum Mode {
+    Normal,
+    Editing
+}
+
 pub trait Widget<B: Backend> {
     fn draw(
         &self,
@@ -123,11 +129,58 @@ where
     }
 }
 
+#[derive(Copy, Clone)]
+pub struct EditorWidget;
+
+impl<B> Widget<B> for EditorWidget
+where
+    B: Backend,
+{
+    fn draw(
+        &self,
+        frame: &mut Frame<B>,
+        theme: &Theme,
+        area: Rect,
+        state: &State,
+    ) -> Result<(), Error> {
+        let mode = state.get::<Mode>("app.mode")?;
+        if *mode == Mode::Editing {
+            let title = String::from("Comment");
+            let spacer = String::new();
+            
+            let lengths = vec![19, 1];
+            let areas = layout::split_area(area, lengths, Direction::Vertical);
+            
+            let title_w = title.len() as u16 + 2;
+            let remaining_w = areas[1]
+                .width
+                .checked_sub(title_w)
+                .unwrap_or(0);
+
+            let widths = vec![title_w, remaining_w];
+            let areas = layout::split_area(areas[1], widths, Direction::Horizontal);
+            
+            let title = template::paragraph_styled(&title, theme.primary_invert);
+            frame.render_widget(title, areas[0]);
+
+            let spacer = template::paragraph_styled(&spacer, theme.bg_bright_ternary);
+            frame.render_widget(spacer, areas[1]);
+        }
+
+        Ok(())
+    }
+
+    fn height(&self, _area: Rect) -> u16 {
+        20_u16
+    }
+}
+
 #[derive(Clone)]
 pub struct PageWidget<B: Backend> {
     pub title: Rc<dyn Widget<B>>,
     pub widgets: Vec<Rc<dyn Widget<B>>>,
     pub context: Rc<dyn Widget<B>>,
+    pub editor: Rc<dyn Widget<B>>,
 }
 
 impl<B> Widget<B> for PageWidget<B>
@@ -141,15 +194,22 @@ where
         area: Rect,
         state: &State,
     ) -> Result<(), Error> {
+        let mode = state.get::<Mode>("app.mode")?;
+
         let title_h = self.title.height(area);
         let context_h = self.context.height(area);
-        let area_h = area.height.checked_sub(title_h + context_h).unwrap_or(0);
+        let editor_h = match mode {
+            Mode::Normal => 0,
+            Mode::Editing => self.editor.height(area),
+        };
+        let area_h = area.height.checked_sub(title_h + context_h + editor_h).unwrap_or(0);
         let widget_h = area_h.checked_div(self.widgets.len() as u16).unwrap_or(0);
 
         let lengths = [
             vec![title_h],
             vec![widget_h; self.widgets.len()],
             vec![context_h],
+            vec![editor_h],
         ]
         .concat();
 
@@ -166,6 +226,9 @@ where
         }
         if let Some(area) = areas.next() {
             self.context.draw(frame, theme, *area, state)?;
+        }
+        if let Some(area) = areas.next() {
+            self.editor.draw(frame, theme, *area, state)?;
         }
 
         Ok(())
@@ -196,7 +259,13 @@ where
         Ok(())
     }
 
-    pub fn draw_active_page(&self, frame: &mut Frame<B>, theme: &Theme, area: Rect, state: &State) -> Result<(), Error> {
+    pub fn draw_active_page(
+        &self,
+        frame: &mut Frame<B>,
+        theme: &Theme,
+        area: Rect,
+        state: &State,
+    ) -> Result<(), Error> {
         let active = state.get::<usize>("app.page.active")?;
         if let Some(page) = self.pages.get(*active) {
             page.draw(frame, theme, area, state)?;

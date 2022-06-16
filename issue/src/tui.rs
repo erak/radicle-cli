@@ -8,7 +8,7 @@ use radicle_terminal as term;
 
 use term::tui::events::Key;
 use term::tui::theme::Theme;
-use term::tui::window::{EmptyWidget, PageWidget, TitleWidget};
+use term::tui::window::{EditorWidget, EmptyWidget, PageWidget, TitleWidget};
 use term::tui::Application;
 
 mod actions;
@@ -56,11 +56,13 @@ pub fn run(project: &Metadata, issues: IssueList) -> Result<(), Error> {
             title: Rc::new(TitleWidget),
             widgets: vec![Rc::new(BrowserWidget)],
             context: Rc::new(EmptyWidget),
+            editor: Rc::new(EditorWidget),
         },
         PageWidget {
             title: Rc::new(EmptyWidget),
             widgets: vec![Rc::new(DetailWidget)],
             context: Rc::new(ContextWidget),
+            editor: Rc::new(EditorWidget),
         },
     ];
 

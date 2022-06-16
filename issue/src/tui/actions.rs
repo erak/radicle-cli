@@ -5,8 +5,9 @@ use anyhow::{Error, Result};
 use radicle_common::cobs::issue::{Issue, IssueId};
 use radicle_terminal as term;
 
-use term::tui::store::State;
 use term::tui::Action;
+use term::tui::store::State;
+use term::tui::window::Mode;
 
 use super::state::Page;
 
@@ -20,7 +21,7 @@ impl Action for EnterAction {
             let next = match page {
                 Page::Overview => {
                     state.set("project.issue.comment.active", Box::new(0_usize));
-                    Some(Page::Edit)
+                    Some(Page::Detail)
                 }
                 _ => None,
             };
@@ -69,7 +70,7 @@ impl Action for UpAction {
                     };
                     state.set("project.issue.active", Box::new(active));
                 }
-                Page::Edit => {
+                Page::Detail => {
                     let active = state.get::<usize>("project.issue.comment.active")?;
                     let active = match *active == 0 {
                         true => 0,
@@ -98,7 +99,7 @@ impl Action for DownAction {
                     };
                     state.set("project.issue.active", Box::new(active));
                 }
-                Page::Edit => {
+                Page::Detail => {
                     let issues = state.get::<IssueList>("project.issue.list")?;
                     let active = state.get::<usize>("project.issue.active")?;
                     if let Some((_, issue)) = issues.get(*active) {

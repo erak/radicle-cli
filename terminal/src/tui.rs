@@ -26,7 +26,7 @@ pub mod window;
 use events::{Events, InputEvent, Key};
 use store::{State, Value};
 use theme::Theme;
-use window::{PageWidget, ShortcutWidget};
+use window::{Mode, PageWidget, ShortcutWidget};
 
 pub const TICK_RATE: u64 = 200;
 pub const ACTION_QUIT: &str = "action.quit";
@@ -199,6 +199,7 @@ impl Default for Application {
                     "app.shortcuts",
                     Box::new(vec![String::from("q quit"), String::from("? help")]),
                 ),
+                ("app.mode", Box::new(Mode::Normal)),
             ])
             .bindings(vec![(Key::Char('q'), ACTION_QUIT)])
             .actions(vec![(ACTION_QUIT, Box::new(QuitAction))])

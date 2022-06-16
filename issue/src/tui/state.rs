@@ -2,7 +2,7 @@ use std::convert::{TryFrom, TryInto};
 
 pub enum Page {
     Overview = 0,
-    Edit = 1,
+    Detail = 1,
 }
 
 impl TryFrom<usize> for Page {
@@ -11,7 +11,7 @@ impl TryFrom<usize> for Page {
     fn try_from(value: usize) -> Result<Self, Self::Error> {
         match value {
             0 => Ok(Page::Overview),
-            1 => Ok(Page::Edit),
+            1 => Ok(Page::Detail),
             _ => Err("Page index not allowed!")
         }
     }
