@@ -16,10 +16,14 @@ use radicle_terminal as term;
 
 use term::tui::layout;
 use term::tui::layout::Padding;
+use term::tui::spans;
 use term::tui::store::State;
+use term::tui::strings;
 use term::tui::template;
 use term::tui::theme::Theme;
 use term::tui::window::Widget;
+
+use super::spans as issue_spans;
 
 type IssueList = Vec<(IssueId, Issue)>;
 
@@ -42,7 +46,7 @@ impl BrowserWidget {
                     issue.author.name(),
                     theme.primary_dim.add_modifier(Modifier::ITALIC),
                 ),
-                Span::raw(template::whitespaces(1)),
+                Span::raw(strings::whitespaces(1)),
                 Span::styled(
                     fmt.convert(timeago),
                     theme.ternary_dim.add_modifier(Modifier::ITALIC),
@@ -104,35 +108,9 @@ impl DetailWidget {
         theme: &Theme,
         width: u16,
     ) -> Vec<ListItem<'a>> {
-        let fmt = timeago::Formatter::new();
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        let timeago = Duration::from_secs(now - issue.comment.timestamp.as_secs());
-
-        let reactions = issue.comment.reactions.iter().collect::<Vec<_>>();
-        let reactions = reactions
-            .iter()
-            .map(|(r, _)| format!("{} ", r.emoji))
-            .collect::<String>();
-
-        let meta = vec![
-            Span::raw(template::whitespaces(0)),
-            Span::styled(
-                issue.author.name(),
-                theme.primary_dim.add_modifier(Modifier::ITALIC),
-            ),
-            Span::raw(template::whitespaces(1)),
-            Span::styled(
-                fmt.convert(timeago),
-                theme.ternary_dim.add_modifier(Modifier::ITALIC),
-            ),
-            Span::raw(template::whitespaces(1)),
-            Span::raw(reactions),
-        ];
+        let meta = issue_spans::comment_meta(&issue.comment, theme, 0);
         let root = [
-            template::lines(&issue.comment.body, width, 0),
+            spans::lines(&issue.comment.body, width, 0),
             vec![Spans::from(String::new()), Spans::from(meta)],
             vec![Spans::from(String::new())],
         ]
@@ -143,34 +121,9 @@ impl DetailWidget {
             .comments()
             .iter()
             .map(|comment| {
-                let fmt = timeago::Formatter::new();
-                let now = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs();
-                let timeago = Duration::from_secs(now - comment.timestamp.as_secs());
-
-                let reactions = comment.reactions.iter().collect::<Vec<_>>();
-                let reactions = reactions
-                    .iter()
-                    .map(|(r, _)| format!("{} ", r.emoji))
-                    .collect::<String>();
-                let meta = vec![
-                    Span::raw(template::whitespaces(4)),
-                    Span::styled(
-                        comment.author.name(),
-                        theme.primary_dim.add_modifier(Modifier::ITALIC),
-                    ),
-                    Span::raw(template::whitespaces(1)),
-                    Span::styled(
-                        fmt.convert(timeago),
-                        theme.ternary_dim.add_modifier(Modifier::ITALIC),
-                    ),
-                    Span::raw(template::whitespaces(1)),
-                    Span::raw(reactions),
-                ];
+                let meta = issue_spans::comment_meta(comment, theme, 4);
                 let comment = [
-                    template::lines(&comment.body, width, 4),
+                    spans::lines(&comment.body, width, 4),
                     vec![Spans::from(String::new()), Spans::from(meta)],
                     vec![Spans::from(String::new())],
                 ]

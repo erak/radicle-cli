@@ -16,7 +16,9 @@ use tui::Terminal;
 
 pub mod events;
 pub mod layout;
+pub mod spans;
 pub mod store;
+pub mod strings;
 pub mod template;
 pub mod theme;
 pub mod window;
@@ -124,7 +126,7 @@ impl<'a> Application {
         let events = Events::new(Duration::from_millis(TICK_RATE));
 
         loop {
-            let mut result: Option<Error> = None;
+            let mut error: Option<Error> = None;
             terminal.draw(|f| {
                 error = window.draw(f, theme, &self.state).err();
             })?;

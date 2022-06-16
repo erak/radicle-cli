@@ -13,6 +13,7 @@ use term::tui::Application;
 
 mod actions;
 mod state;
+mod spans;
 mod widgets;
 
 use actions::{EnterAction, EscAction, DownAction, UpAction};
