@@ -9,6 +9,7 @@ use radicle_common::cobs::issue::{Issue, IssueId};
 use radicle_common::project::Metadata;
 use radicle_terminal as term;
 
+use term::tui::editor::{Editor};
 use term::tui::events::{InputEvent, Key};
 use term::tui::store::State;
 use term::tui::theme::Theme;
@@ -30,6 +31,7 @@ pub enum Action {
     Up,
     Down,
     Comment,
+    Backspace,
 }
 
 lazy_static! {
@@ -50,6 +52,7 @@ pub fn run(project: &Metadata, issues: IssueList) -> Result<(), Error> {
         ("app.mode", Box::new(Mode::Normal)),
         ("app.page.active", Box::new(Page::Overview as usize)),
         ("app.tab.active", Box::new(Tab::Open as usize)),
+        ("app.editor", Box::new(Editor::new())),
         ("app.editor.text", Box::new(String::new())),
         ("project.name", Box::new(project.name.clone())),
         ("project.issue.list", Box::new(issues)),
@@ -57,7 +60,7 @@ pub fn run(project: &Metadata, issues: IssueList) -> Result<(), Error> {
         ("project.issue.comment.active", Box::new(0_usize)),
         (
             "app.shortcuts",
-            Box::new(vec![String::from("q quit"), String::from("? help")]),
+            Box::new(vec![String::from("c comment"), String::from("q quit"), String::from("? help")]),
         ),
     ]);
 
@@ -232,6 +235,7 @@ pub fn quit_application(state: &mut State) -> Result<(), Error> {
 }
 
 pub fn clear_editor(state: &mut State) -> Result<(), Error> {
+    state.set("app.editor", Box::new(Editor::new()));
     state.set("app.editor.text", Box::new(String::new()));
     Ok(())
 }
@@ -239,7 +243,17 @@ pub fn clear_editor(state: &mut State) -> Result<(), Error> {
 pub fn append_editor(state: &mut State, character: char) -> Result<(), Error> {
     let text = state.get::<String>("app.editor.text")?;
     let text = format!("{}{}", text, character);
-    state.set("app.editor.text", Box::new(text));
+    state.set("app.editor.text", Box::new(text.clone()));
+
+    let mut editor = Editor::new();
+    editor.set_content(text);
+    state.set("app.editor", Box::new(editor));
     Ok(())
 }
 
+// pub fn navigate_editor(state: &mut State, key: Key) -> Result<(), Error> {
+//     let text = state.get::<String>("app.editor.text")?;
+//     let cursor_x = state.get::<usize>("app.editor.cursor.x")?;
+
+//     Ok(())
+// }

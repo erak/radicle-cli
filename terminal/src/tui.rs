@@ -13,6 +13,7 @@ use crossterm::terminal::{
 use tui::backend::{Backend, CrosstermBackend};
 use tui::Terminal;
 
+pub mod editor;
 pub mod events;
 pub mod layout;
 pub mod spans;

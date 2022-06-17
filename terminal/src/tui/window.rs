@@ -9,6 +9,7 @@ use tui::text::{Span, Spans};
 use tui::widgets::{Block, Borders, Paragraph};
 use tui::Frame;
 
+use super::editor::Editor;
 use super::layout;
 use super::layout::Padding;
 use super::spans;
@@ -78,6 +79,15 @@ where
         state: &State,
     ) -> Result<(), Error> {
         let shortcuts = state.get::<Vec<String>>("app.shortcuts")?;
+        // let page = state.get::<Vec<String>>("app.shortcuts")?;
+        // let page = Page::try_from(*page)?;
+        
+        // let shortcuts = match page {
+        //     Page::Detail => [vec![String::from("c comment")], *shortcuts].concat(),
+        //     _ => *shortcuts,
+        // };
+        // let shortcuts = [vec![String::from("c comment")], *shortcuts].concat();
+        
         let lengths = shortcuts
             .iter()
             .map(|s| s.len() as u16 + 2)
@@ -146,7 +156,7 @@ where
         state: &State,
     ) -> Result<(), Error> {
         let mode = state.get::<Mode>("app.mode")?;
-        let text = state.get::<String>("app.editor.text")?;
+        let editor = state.get::<Editor>("app.editor")?;
 
         if *mode == Mode::Editing {
             let title = String::from("Comment");
@@ -159,14 +169,20 @@ where
                 template::block(theme, areas[0], Padding { top: 1, left: 4 }, true);
             frame.render_widget(block, inner);
 
-            let cursor_x = text.len() as u16;
-            let text = spans::lines(&text, inner.width, 0);
-            let input = Paragraph::new(text);
+            let rows = editor.render_rows(inner);
+            let rows = rows
+                .iter()
+                .map(|r| Spans::from(Span::raw(r)))
+                .collect::<Vec<_>>();
+
+            // let cursor_x = text.len() as u16;
+            // let text = spans::lines(&text, inner.width, 0);
+            let input = Paragraph::new(rows);
             frame.render_widget(input, inner);
 
-            // Put cursor past the end of the input text
-            // Move one line down, from the border to the input line
-            frame.set_cursor(inner.x + cursor_x, inner.y);
+            // // Put cursor past the end of the input text
+            // // Move one line down, from the border to the input line
+            // frame.set_cursor(inner.x + cursor_x, inner.y);
 
             // Draw footer
             let title_w = title.len() as u16 + 2;
