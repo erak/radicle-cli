@@ -47,8 +47,10 @@ lazy_static! {
 pub fn run(project: &Metadata, issues: IssueList) -> Result<(), Error> {
     let mut app = Application::new(&update).state(vec![
         ("app.title", Box::new("Issues".to_owned())),
+        ("app.mode", Box::new(Mode::Normal)),
         ("app.page.active", Box::new(Page::Overview as usize)),
         ("app.tab.active", Box::new(Tab::Open as usize)),
+        ("app.editor.text", Box::new(String::new())),
         ("project.name", Box::new(project.name.clone())),
         ("project.issue.list", Box::new(issues)),
         ("project.issue.active", Box::new(0_usize)),
@@ -104,6 +106,9 @@ pub fn update(state: &mut State, event: &InputEvent) -> Result<(), Error> {
                 Key::Esc => {
                     leave_edit_mode(state)?;
                 }
+                Key::Char(c) => {
+                    append_editor(state, *c)?;
+                }
                 _ => {}
             },
         },
@@ -143,6 +148,7 @@ pub fn handle_action(state: &mut State, key: Key) -> Result<(), Error> {
                 }
                 _ => {}
             },
+            _ => {}
         }
     }
     Ok(())
@@ -216,6 +222,7 @@ pub fn select_previous_comment(state: &mut State) -> Result<(), Error> {
 
 pub fn edit_comment(state: &mut State) -> Result<(), Error> {
     state.set("app.mode", Box::new(Mode::Editing));
+    clear_editor(state)?;
     Ok(())
 }
 
@@ -223,3 +230,16 @@ pub fn quit_application(state: &mut State) -> Result<(), Error> {
     state.set("app.running", Box::new(false));
     Ok(())
 }
+
+pub fn clear_editor(state: &mut State) -> Result<(), Error> {
+    state.set("app.editor.text", Box::new(String::new()));
+    Ok(())
+}
+
+pub fn append_editor(state: &mut State, character: char) -> Result<(), Error> {
+    let text = state.get::<String>("app.editor.text")?;
+    let text = format!("{}{}", text, character);
+    state.set("app.editor.text", Box::new(text));
+    Ok(())
+}
+

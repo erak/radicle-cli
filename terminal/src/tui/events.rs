@@ -10,6 +10,9 @@ pub enum Key {
     Esc,
     Up,
     Down,
+    Left,
+    Right,
+    Backspace,
     Char(char),
     Unknown,
 }
@@ -37,6 +40,18 @@ impl From<event::KeyEvent> for Key {
                 code: event::KeyCode::Down,
                 ..
             } => Key::Down,
+            event::KeyEvent {
+                code: event::KeyCode::Left,
+                ..
+            } => Key::Left,
+            event::KeyEvent {
+                code: event::KeyCode::Right,
+                ..
+            } => Key::Right,
+            event::KeyEvent {
+                code: event::KeyCode::Backspace,
+                ..
+            } => Key::Backspace,
             _ => Key::Unknown,
         }
     }

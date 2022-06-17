@@ -4,12 +4,14 @@ use anyhow::{Error, Result};
 
 use tui::backend::Backend;
 use tui::layout::{Direction, Rect};
+use tui::style::Style;
 use tui::text::{Span, Spans};
 use tui::widgets::{Block, Borders, Paragraph};
 use tui::Frame;
 
 use super::layout;
 use super::layout::Padding;
+use super::spans;
 use super::store::State;
 use super::template;
 use super::theme::Theme;
@@ -17,7 +19,7 @@ use super::theme::Theme;
 #[derive(Eq, PartialEq, PartialOrd)]
 pub enum Mode {
     Normal,
-    Editing
+    Editing,
 }
 
 pub trait Widget<B: Backend> {
@@ -144,22 +146,34 @@ where
         state: &State,
     ) -> Result<(), Error> {
         let mode = state.get::<Mode>("app.mode")?;
+        let text = state.get::<String>("app.editor.text")?;
+
         if *mode == Mode::Editing {
             let title = String::from("Comment");
             let spacer = String::new();
-            
             let lengths = vec![19, 1];
             let areas = layout::split_area(area, lengths, Direction::Vertical);
-            
+
+            // Draw editor
+            let (block, inner) =
+                template::block(theme, areas[0], Padding { top: 1, left: 4 }, true);
+            frame.render_widget(block, inner);
+
+            let cursor_x = text.len() as u16;
+            let text = spans::lines(&text, inner.width, 0);
+            let input = Paragraph::new(text);
+            frame.render_widget(input, inner);
+
+            // Put cursor past the end of the input text
+            // Move one line down, from the border to the input line
+            frame.set_cursor(inner.x + cursor_x, inner.y);
+
+            // Draw footer
             let title_w = title.len() as u16 + 2;
-            let remaining_w = areas[1]
-                .width
-                .checked_sub(title_w)
-                .unwrap_or(0);
+            let remaining_w = areas[1].width.checked_sub(title_w).unwrap_or(0);
 
             let widths = vec![title_w, remaining_w];
             let areas = layout::split_area(areas[1], widths, Direction::Horizontal);
-            
             let title = template::paragraph_styled(&title, theme.primary_invert);
             frame.render_widget(title, areas[0]);
 
@@ -202,7 +216,10 @@ where
             Mode::Normal => 0,
             Mode::Editing => self.editor.height(area),
         };
-        let area_h = area.height.checked_sub(title_h + context_h + editor_h).unwrap_or(0);
+        let area_h = area
+            .height
+            .checked_sub(title_h + context_h + editor_h)
+            .unwrap_or(0);
         let widget_h = area_h.checked_div(self.widgets.len() as u16).unwrap_or(0);
 
         let lengths = [
