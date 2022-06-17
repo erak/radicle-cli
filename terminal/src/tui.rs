@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::io::{stdout, Stdout};
 use std::rc::Rc;
 use std::time::Duration;
@@ -23,66 +22,32 @@ pub mod template;
 pub mod theme;
 pub mod window;
 
-use events::{Events, InputEvent, Key};
+use events::{Events, InputEvent};
 use store::{State, Value};
 use theme::Theme;
 use window::{Mode, PageWidget, ShortcutWidget};
 
 pub const TICK_RATE: u64 = 200;
-pub const ACTION_QUIT: &str = "action.quit";
 
-pub type BoxedAction = Box<dyn Action>;
-pub trait Action {
-    fn execute(&mut self, state: &mut State) -> Result<(), Error>;
-}
+pub type Update = dyn Fn(&mut State, &InputEvent) -> Result<(), Error>;
 
-pub struct QuitAction;
-impl Action for QuitAction {
-    fn execute(&mut self, state: &mut State) -> Result<(), Error> {
-        state.set("app.running", Box::new(false));
-        Ok(())
-    }
-}
-
-pub struct Bindings {
-    entries: HashMap<Key, String>,
-}
-
-impl Bindings {
-    pub fn add(&mut self, key: Key, id: &str) {
-        self.entries.insert(key, id.to_owned());
-    }
-
-    pub fn get(&self, key: Key) -> Option<&String> {
-        self.entries.get(&key)
-    }
-}
-
-pub struct Actions {
-    entries: HashMap<String, BoxedAction>,
-}
-
-impl Actions {
-    pub fn add(&mut self, id: &str, action: BoxedAction) {
-        self.entries.insert(id.to_owned(), action);
-    }
-
-    pub fn get_mut(&mut self, id: &str) -> Option<&mut BoxedAction> {
-        self.entries.get_mut(&id.to_owned())
-    }
-}
-
-pub struct Application {
-    bindings: Bindings,
-    actions: Actions,
+pub struct Application<'a> {
+    update: &'a Update,
     state: State,
 }
 
-impl<'a> Application {
-    pub fn new() -> Self {
-        Application {
-            ..Default::default()
-        }
+impl<'a> Application<'a> {
+    pub fn new(update: &'a Update) -> Self {
+        let application = Application {
+            update: update,
+            state: Default::default(),
+        };
+        application
+            .state(vec![
+                ("app.running", Box::new(true)),
+                ("app.page.index", Box::new(0_usize)),
+                ("app.mode", Box::new(Mode::Normal)),
+            ])
     }
 
     pub fn execute(
@@ -134,10 +99,8 @@ impl<'a> Application {
                 return Err(err.into());
             }
 
-            match events.next()? {
-                InputEvent::Input(key) => self.on_key(&key)?,
-                InputEvent::Tick => self.on_tick(),
-            };
+            let event = events.next()?;
+            self.on_input_event(&event)?;
 
             let running = self.state.get::<bool>("app.running")?;
             if !running {
@@ -153,55 +116,8 @@ impl<'a> Application {
         self
     }
 
-    pub fn bindings(mut self, bindings: Vec<(Key, &str)>) -> Self {
-        for binding in bindings {
-            self.bindings.add(binding.0, binding.1);
-        }
-        self
-    }
-
-    pub fn actions(mut self, actions: Vec<(&str, BoxedAction)>) -> Self {
-        for action in actions {
-            self.actions.add(action.0, action.1);
-        }
-        self
-    }
-
-    fn on_key(&mut self, key: &Key) -> Result<(), Error> {
-        if let Some(id) = self.bindings.get(*key) {
-            if let Some(action) = self.actions.get_mut(id) {
-                action.execute(&mut self.state)?;
-            }
-        }
-
+    pub fn on_input_event(&mut self, event: &InputEvent) -> Result<(), Error> {
+        (self.update)(&mut self.state, event)?;
         Ok(())
-    }
-
-    fn on_tick(&mut self) {}
-}
-
-impl Default for Application {
-    fn default() -> Self {
-        let application = Application {
-            bindings: Bindings {
-                entries: HashMap::new(),
-            },
-            actions: Actions {
-                entries: HashMap::new(),
-            },
-            state: Default::default(),
-        };
-        application
-            .state(vec![
-                ("app.running", Box::new(true)),
-                ("app.page.index", Box::new(0_usize)),
-                (
-                    "app.shortcuts",
-                    Box::new(vec![String::from("q quit"), String::from("? help")]),
-                ),
-                ("app.mode", Box::new(Mode::Normal)),
-            ])
-            .bindings(vec![(Key::Char('q'), ACTION_QUIT)])
-            .actions(vec![(ACTION_QUIT, Box::new(QuitAction))])
     }
 }
