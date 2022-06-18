@@ -180,9 +180,10 @@ where
             let input = Paragraph::new(rows);
             frame.render_widget(input, inner);
 
-            // // Put cursor past the end of the input text
-            // // Move one line down, from the border to the input line
-            // frame.set_cursor(inner.x + cursor_x, inner.y);
+            // Put cursor past the end of the input text
+            // Move one line down, from the border to the input line
+            let cursor = editor.cursor_position();
+            frame.set_cursor(inner.x + cursor.x as u16, inner.y + cursor.y as u16);
 
             // Draw footer
             let title_w = title.len() as u16 + 2;

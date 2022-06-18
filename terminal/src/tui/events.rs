@@ -7,12 +7,14 @@ use crossterm::event;
 #[derive(PartialEq, Eq, Clone, Copy, Hash, Debug)]
 pub enum Key {
     Enter,
+    ShiftEnter,
     Esc,
     Up,
     Down,
     Left,
     Right,
     Backspace,
+    Delete,
     Char(char),
     Unknown,
 }
@@ -24,6 +26,10 @@ impl From<event::KeyEvent> for Key {
                 code: event::KeyCode::Char(c),
                 ..
             } => Key::Char(c),
+            event::KeyEvent {
+                code: event::KeyCode::Enter,
+                modifiers: event::KeyModifiers::SHIFT,
+            } => Key::ShiftEnter,
             event::KeyEvent {
                 code: event::KeyCode::Enter,
                 ..
@@ -52,6 +58,10 @@ impl From<event::KeyEvent> for Key {
                 code: event::KeyCode::Backspace,
                 ..
             } => Key::Backspace,
+            event::KeyEvent {
+                code: event::KeyCode::Delete,
+                ..
+            } => Key::Delete,
             _ => Key::Unknown,
         }
     }

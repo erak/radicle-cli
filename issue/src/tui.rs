@@ -5,6 +5,8 @@ use std::rc::Rc;
 use anyhow::{Error, Result};
 use lazy_static::lazy_static;
 
+use tui::layout::Rect;
+
 use radicle_common::cobs::issue::{Issue, IssueId};
 use radicle_common::project::Metadata;
 use radicle_terminal as term;
@@ -109,10 +111,9 @@ pub fn update(state: &mut State, event: &InputEvent) -> Result<(), Error> {
                 Key::Esc => {
                     leave_edit_mode(state)?;
                 }
-                Key::Char(c) => {
-                    append_editor(state, *c)?;
+                _ => {
+                    handle_editor(state, key)?;
                 }
-                _ => {}
             },
         },
         InputEvent::Tick => {}
@@ -240,13 +241,19 @@ pub fn clear_editor(state: &mut State) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn append_editor(state: &mut State, character: char) -> Result<(), Error> {
-    let text = state.get::<String>("app.editor.text")?;
-    let text = format!("{}{}", text, character);
-    state.set("app.editor.text", Box::new(text.clone()));
+pub fn handle_editor(state: &mut State, key: &Key) -> Result<(), Error> {
+    // let text = state.get::<String>("app.editor.text")?;
+    // let text = format!("{}{}", text, character);
+    // state.set("app.editor.text", Box::new(text.clone()));
+    let area = Rect::new(0, 0, 80, 19);
+    let editor = state.get::<Editor>("app.editor")?;
 
-    let mut editor = Editor::new();
-    editor.set_content(text);
+    // let mut editor = Editor::new();
+    // editor.set_content(text);
+
+    
+    let mut editor = editor.clone();
+    editor.process_keypress(*key, area)?;    
     state.set("app.editor", Box::new(editor));
     Ok(())
 }
