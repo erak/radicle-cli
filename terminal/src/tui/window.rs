@@ -1,3 +1,4 @@
+use std::process::Command;
 use std::rc::Rc;
 
 use anyhow::{Error, Result};
@@ -17,10 +18,26 @@ use super::store::State;
 use super::template;
 use super::theme::Theme;
 
+// #[derive(Eq, PartialEq, PartialOrd)]
+// pub struct ExternalCommand {
+//     pub program: String,
+//     pub args: Vec<String>,
+// }
+
+// impl ExternalCommand {
+//     pub fn new(program: &str, args: Vec<&str>) -> Self {
+//         Self {
+//             program: String::from(program),
+//             args: args.iter().map(|s| String::from(*s)).collect(),
+//         }
+//     }
+// }
+
 #[derive(Eq, PartialEq, PartialOrd)]
 pub enum Mode {
     Normal,
     Editing,
+    Exiting,
 }
 
 pub trait Widget<B: Backend> {
@@ -81,13 +98,11 @@ where
         let shortcuts = state.get::<Vec<String>>("app.shortcuts")?;
         // let page = state.get::<Vec<String>>("app.shortcuts")?;
         // let page = Page::try_from(*page)?;
-        
         // let shortcuts = match page {
         //     Page::Detail => [vec![String::from("c comment")], *shortcuts].concat(),
         //     _ => *shortcuts,
         // };
         // let shortcuts = [vec![String::from("c comment")], *shortcuts].concat();
-        
         let lengths = shortcuts
             .iter()
             .map(|s| s.len() as u16 + 2)
@@ -230,8 +245,8 @@ where
         let title_h = self.title.height(area);
         let context_h = self.context.height(area);
         let editor_h = match mode {
-            Mode::Normal => 0,
             Mode::Editing => self.editor.height(area),
+            _ => 0,
         };
         let area_h = area
             .height

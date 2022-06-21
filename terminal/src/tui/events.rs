@@ -76,26 +76,27 @@ pub enum InputEvent {
 /// type is handled in its own thread and returned to a common `Receiver`
 pub struct Events {
     rx: Receiver<InputEvent>,
-    // Need to be kept around to prevent disposing the sender side.
-    _tx: Sender<InputEvent>,
 }
 
 impl Events {
     pub fn new(tick_rate: Duration) -> Events {
         let (tx, rx) = channel();
 
-        let event_tx = tx.clone();
         thread::spawn(move || loop {
             if crossterm::event::poll(tick_rate).unwrap() {
                 if let crossterm::event::Event::Key(key) = crossterm::event::read().unwrap() {
                     let key = Key::from(key);
-                    event_tx.send(InputEvent::Input(key)).unwrap();
+                    if tx.send(InputEvent::Input(key)).is_err() {
+                        break;
+                    }
                 }
             }
-            event_tx.send(InputEvent::Tick).unwrap();
+            if tx.send(InputEvent::Tick).is_err() {
+                break;
+            }
         });
 
-        Events { rx, _tx: tx }
+        Events { rx }
     }
 
     /// Attempts to read an event.

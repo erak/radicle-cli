@@ -11,11 +11,12 @@ use radicle_common::cobs::issue::{Issue, IssueId};
 use radicle_common::project::Metadata;
 use radicle_terminal as term;
 
-use term::tui::editor::{Editor};
+use term::tui::editor::Editor;
 use term::tui::events::{InputEvent, Key};
 use term::tui::store::State;
 use term::tui::theme::Theme;
-use term::tui::window::{EditorWidget, EmptyWidget, Mode, PageWidget, TitleWidget};
+use term::tui::window::Mode;
+use term::tui::window::{EditorWidget, EmptyWidget, PageWidget, TitleWidget};
 use term::tui::Application;
 
 mod spans;
@@ -28,12 +29,17 @@ use widgets::{BrowserWidget, ContextWidget, DetailWidget};
 type IssueList = Vec<(IssueId, Issue)>;
 
 #[derive(Clone, Eq, PartialEq)]
+pub enum InternalCall {
+    New,
+}
+
+#[derive(Clone, Eq, PartialEq)]
 pub enum Action {
     Quit,
     Up,
     Down,
+    New,
     Comment,
-    Backspace,
 }
 
 lazy_static! {
@@ -41,6 +47,7 @@ lazy_static! {
         (Key::Char('q'), Action::Quit),
         (Key::Up, Action::Up),
         (Key::Down, Action::Down),
+        (Key::Char('n'), Action::New),
         (Key::Char('c'), Action::Comment),
     ]
     .iter()
@@ -48,10 +55,12 @@ lazy_static! {
     .collect();
 }
 
-pub fn run(project: &Metadata, issues: IssueList) -> Result<(), Error> {
+pub fn run(project: &Metadata, issues: IssueList) -> Result<Option<InternalCall>, Error> {
+    let internal_call: Option<InternalCall> = None;
     let mut app = Application::new(&update).state(vec![
         ("app.title", Box::new("Issues".to_owned())),
         ("app.mode", Box::new(Mode::Normal)),
+        ("app.call.internal", Box::new(internal_call)),
         ("app.page.active", Box::new(Page::Overview as usize)),
         ("app.tab.active", Box::new(Tab::Open as usize)),
         ("app.editor", Box::new(Editor::new())),
@@ -62,7 +71,11 @@ pub fn run(project: &Metadata, issues: IssueList) -> Result<(), Error> {
         ("project.issue.comment.active", Box::new(0_usize)),
         (
             "app.shortcuts",
-            Box::new(vec![String::from("c comment"), String::from("q quit"), String::from("? help")]),
+            Box::new(vec![
+                String::from("c comment"),
+                String::from("q quit"),
+                String::from("? help"),
+            ]),
         ),
     ]);
 
@@ -84,7 +97,10 @@ pub fn run(project: &Metadata, issues: IssueList) -> Result<(), Error> {
     let theme = Theme::default_dark();
     app.execute(pages, &theme)?;
 
-    Ok(())
+    match app.state.get::<Option<InternalCall>>("app.call.internal") {
+        Ok(Some(call)) => return Ok(Some(call.clone())),
+        Ok(None) | Err(_) => return Ok(None),
+    }
 }
 
 pub fn update(state: &mut State, event: &InputEvent) -> Result<(), Error> {
@@ -115,6 +131,7 @@ pub fn update(state: &mut State, event: &InputEvent) -> Result<(), Error> {
                     handle_editor(state, key)?;
                 }
             },
+            _ => {}
         },
         InputEvent::Tick => {}
     }
@@ -152,6 +169,7 @@ pub fn handle_action(state: &mut State, key: Key) -> Result<(), Error> {
                 }
                 _ => {}
             },
+            Action::New => add_new_issue(state),
             _ => {}
         }
     }
@@ -168,6 +186,12 @@ pub fn leave_edit_mode(state: &mut State) -> Result<(), Error> {
     state.set("app.mode", Box::new(Mode::Normal));
     Ok(())
 }
+
+// pub fn exexute_external_command(state: &mut State, command: ExternalCommand) {
+//     // let mode = Mode::Command(command);
+//     // state.set("app.external.command", Box::new(mode));
+//     state.set("app.mode", Box::new(Mode::Halt));
+// }
 
 pub fn select_default_comment(state: &mut State) -> Result<(), Error> {
     state.set("project.issue.comment.active", Box::new(0_usize));
@@ -231,7 +255,7 @@ pub fn edit_comment(state: &mut State) -> Result<(), Error> {
 }
 
 pub fn quit_application(state: &mut State) -> Result<(), Error> {
-    state.set("app.running", Box::new(false));
+    state.set("app.mode", Box::new(Mode::Exiting));
     Ok(())
 }
 
@@ -251,11 +275,15 @@ pub fn handle_editor(state: &mut State, key: &Key) -> Result<(), Error> {
     // let mut editor = Editor::new();
     // editor.set_content(text);
 
-    
     let mut editor = editor.clone();
-    editor.process_keypress(*key, area)?;    
+    editor.process_keypress(*key, area)?;
     state.set("app.editor", Box::new(editor));
     Ok(())
+}
+
+pub fn add_new_issue(state: &mut State) {
+    state.set("app.call.internal", Box::new(Some(InternalCall::New)));
+    state.set("app.mode", Box::new(Mode::Exiting));
 }
 
 // pub fn navigate_editor(state: &mut State, key: Key) -> Result<(), Error> {

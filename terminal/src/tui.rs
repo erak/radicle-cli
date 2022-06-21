@@ -1,4 +1,5 @@
 use std::io::{stdout, Stdout};
+use std::process::Command;
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -34,7 +35,7 @@ pub type Update = dyn Fn(&mut State, &InputEvent) -> Result<(), Error>;
 
 pub struct Application<'a> {
     update: &'a Update,
-    state: State,
+    pub state: State,
 }
 
 impl<'a> Application<'a> {
@@ -43,26 +44,24 @@ impl<'a> Application<'a> {
             update: update,
             state: Default::default(),
         };
-        application
-            .state(vec![
-                ("app.running", Box::new(true)),
-                ("app.page.index", Box::new(0_usize)),
-                ("app.mode", Box::new(Mode::Normal)),
-            ])
+        application.state(vec![
+            ("app.page.index", Box::new(0_usize)),
+            ("app.mode", Box::new(Mode::Normal)),
+        ])
     }
 
     pub fn execute(
         &mut self,
         pages: Vec<PageWidget<CrosstermBackend<Stdout>>>,
         theme: &Theme,
-    ) -> anyhow::Result<(), Error> {
+    ) -> Result<(), Error> {
         enable_raw_mode()?;
         let mut stdout = stdout();
         execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
 
-        let res = self.run(&mut terminal, pages, theme);
+        self.run(&mut terminal, pages, theme)?;
 
         disable_raw_mode()?;
         execute!(
@@ -72,10 +71,6 @@ impl<'a> Application<'a> {
         )?;
         terminal.show_cursor()?;
 
-        if let Err(err) = res {
-            println!("{:?}", err)
-        }
-
         Ok(())
     }
 
@@ -84,7 +79,7 @@ impl<'a> Application<'a> {
         terminal: &mut Terminal<B>,
         pages: Vec<PageWidget<B>>,
         theme: &Theme,
-    ) -> anyhow::Result<(), Error> {
+    ) -> Result<(), Error> {
         let window = window::ApplicationWindow {
             pages: pages,
             shortcuts: Rc::new(ShortcutWidget),
@@ -103,9 +98,10 @@ impl<'a> Application<'a> {
             let event = events.next()?;
             self.on_input_event(&event)?;
 
-            let running = self.state.get::<bool>("app.running")?;
-            if !running {
-                return Ok(());
+            let mode = self.state.get::<Mode>("app.mode")?;
+            if *mode == Mode::Exiting {
+                std::mem::drop(events);
+                return Ok(())
             }
         }
     }
